@@ -43,7 +43,7 @@ jobs:
         run: |
           work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
           mkdir -p "$work/built"
-          /usr/bin/time -f '%e %M' -o "$work/generated-build.metric" sh -c '
+          /usr/bin/time -f '%e %M' -o "$work/generated-build.metric" bash -c '
             set -euo pipefail
             work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
             while IFS= read -r source; do
@@ -58,7 +58,7 @@ jobs:
         run: |
           work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
           mkdir -p "$work/runtime"
-          /usr/bin/time -f '%e %M' -o "$work/generated-run.metric" sh -c '
+          /usr/bin/time -f '%e %M' -o "$work/generated-run.metric" bash -c '
             set -euo pipefail
             work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
             while IFS= read -r binary; do
