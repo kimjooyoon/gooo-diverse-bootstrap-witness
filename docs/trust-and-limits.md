@@ -85,6 +85,17 @@ corpus. This repository makes no global-language self-improvement claim.
 `gooo-two-generation-bootstrap v0.1.1` is retained only as a digest-pinned
 optional input with `required_gate=0`. Its presence cannot close any case.
 
+The repository release policy is recorded in
+[docs/release-policy.md](release-policy.md). The endpoint is an
+administrator-read API, so a regular Actions GITHUB_TOKEN 403 is recorded as
+insufficient observation rather than inferred as enabled=false. The release
+workflow instead verifies the public release API after publication and fails
+closed unless immutable=true, the exact annotated tag object target, one asset,
+and its expected digest all match. GitHub documents that immutable releases
+lock the associated tag and assets after publication and recommends creating a
+draft, attaching all assets, then publishing it; this repository preserves the
+historical mutable v0.1.0 and uses the enabled policy for later releases.
+
 An improvement claim is accepted only for an exact before/after pair with the
 same scenario, source digest, contract digest, and toolchain digest, and with
 integer measurements on both sides. Scores, weighted averages, and estimated
