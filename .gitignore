@@ -1,0 +1,6 @@
+.DS_Store
+
+# CI and caller-owned verification output.
+evidence/
+out/
+*.test
