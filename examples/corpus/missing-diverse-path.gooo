@@ -1,0 +1,4 @@
+program hello
+const message = "hello"
+effect announce = "hello"
+emit message
