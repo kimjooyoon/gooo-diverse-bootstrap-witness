@@ -1,0 +1,80 @@
+name: immutable-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing annotated tag to publish, for example v0.1.1
+        required: true
+        type: string
+      title:
+        description: Release title
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify annotated tag before publication
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test -n "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+      - name: Build release asset
+        id: asset
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          asset="$RUNNER_TEMP/${RELEASE_TAG}-source.tar.gz"
+          git archive --format=tar.gz --prefix="${RELEASE_TAG}/" "refs/tags/$RELEASE_TAG" > "$asset"
+          echo "path=$asset" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$asset")" >> "$GITHUB_OUTPUT"
+          echo "digest=$(sha256sum "$asset" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Create draft release with asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TITLE: ${{ inputs.title }}
+          ASSET_PATH: ${{ steps.asset.outputs.path }}
+        run: |
+          gh release create "$RELEASE_TAG" "$ASSET_PATH" \
+            --draft \
+            --title "$RELEASE_TITLE" \
+            --notes 'Published by the immutable release workflow after the merge and CI gates.'
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
+      - name: Verify immutable release, exact tag object, and asset digest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          ASSET_NAME: ${{ steps.asset.outputs.name }}
+          ASSET_DIGEST: ${{ steps.asset.outputs.digest }}
+        run: |
+          set -euo pipefail
+          release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          test "$(jq -r '.draft' <<<"$release")" = false
+          test "$(jq -r '.prerelease' <<<"$release")" = false
+          test "$(jq -r '.immutable // "missing"' <<<"$release")" = true
+          tag_object="$(git rev-parse "refs/tags/$RELEASE_TAG^{tag}")"
+          tag_ref_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_ref_object" = "$tag_object"
+          tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          tag_target="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.object.sha')"
+          test "$tag_target" = "$tag_commit"
+          test "$(jq '.assets | length' <<<"$release")" = 1
+          api_digest="$(jq -r --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .digest' <<<"$release")"
+          test "$api_digest" = "sha256:$ASSET_DIGEST"
+          echo "immutable=true tag_object=$tag_object tag_commit=$tag_commit asset=$api_digest"
