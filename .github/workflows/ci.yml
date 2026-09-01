@@ -9,7 +9,19 @@ permissions:
   contents: read
 
 jobs:
+  immutable-release-guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require repository immutable releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/check-immutable-releases.sh "$GITHUB_REPOSITORY"
+
   semantic-audit:
+    needs: immutable-release-guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

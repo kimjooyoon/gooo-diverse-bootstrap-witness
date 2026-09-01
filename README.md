@@ -29,6 +29,9 @@ GitHub Actions uses Go 1.27 and is the verification authority. It checks the
 independence import intersection, runs Go tests, generates the six cases into a
 caller-owned temporary directory, builds and runs every available generated Go
 artifact, compares runtime output, and uploads an evidence JSON artifact.
+The first job queries GitHub's repository immutable-releases endpoint and fails
+closed unless it returns `enabled=true`; this guard applies to future release
+work after the historical v0.1.0 release.
 
 The local development contract intentionally does not require local
 test/build/vet/conformance runs. Generated output never enters the repository.
