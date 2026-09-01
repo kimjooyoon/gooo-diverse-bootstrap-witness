@@ -1,9 +1,9 @@
 name: diverse-bootstrap-witness
 
 on:
-  pull_request:
   push:
     branches: [main]
+  pull_request:
 
 permissions:
   contents: read
@@ -16,7 +16,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Set up Go 1.27
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.27.x'
           cache: false
@@ -33,7 +33,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Set up Go 1.27
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.27.x'
           cache: false
