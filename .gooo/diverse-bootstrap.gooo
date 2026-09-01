@@ -1,0 +1,97 @@
+{
+  "schema": "gooo.diverse-bootstrap-witness/v1",
+  "authority": "metacode",
+  "contract_id": "gooo-diverse-bootstrap-witness/v1",
+  "language": {
+    "name": "Gooo",
+    "source_extension": ".gooo",
+    "comment_prefixes": ["#", "//"],
+    "keywords": {
+      "program": "program",
+      "binding": "const",
+      "emission": "emit",
+      "effect": "effect"
+    },
+    "grammar": [
+      "program <identifier>",
+      "const <identifier> = <quoted-string>",
+      "emit <identifier>",
+      "effect <identifier> = <quoted-string>"
+    ]
+  },
+  "semantic": {
+    "ir_schema": "gooo.semantic-ir/v1",
+    "fields": ["schema", "program", "bindings", "emissions", "effects", "diagnostics"],
+    "normalization": [
+      "sort_bindings_by_name",
+      "preserve_emission_order",
+      "preserve_effect_order",
+      "preserve_diagnostic_order"
+    ],
+    "comparison": "canonical-json-sha256",
+    "comments_are_nonsemantic": true
+  },
+  "generation_graph": [
+    {"id": "source", "kind": "gooo-semantic-source", "input": null, "outputs": ["path-a", "path-b"]},
+    {"id": "path-a", "kind": "independent-lowerer-executor", "implementation": "internal/patha", "input": "source", "outputs": ["path-a-ir", "path-a-artifact", "path-a-trace"]},
+    {"id": "path-b", "kind": "independent-lowerer-executor", "implementation": "internal/pathb", "input": "source", "outputs": ["path-b-ir", "path-b-artifact", "path-b-trace"]},
+    {"id": "compare", "kind": "canonical-semantic-and-byte-comparison", "input": ["path-a", "path-b"], "outputs": ["case-judgment"]},
+    {"id": "run", "kind": "generated-go-build-run", "input": ["path-a-artifact", "path-b-artifact"], "outputs": ["runtime-observation"]}
+  ],
+  "independence_predicate": {
+    "paths": ["internal/patha", "internal/pathb"],
+    "allowed_shared_packages": ["internal/wire"],
+    "allowed_shared_inputs": [".gooo/diverse-bootstrap.gooo", "examples/corpus/*.gooo"],
+    "forbidden_shared_package_kinds": ["evaluation", "lowering"],
+    "require_ci_import_intersection_check": true,
+    "require_distinct_parser_lowerer_emitter_executor_sources": true
+  },
+  "canonical_semantic_comparison": {
+    "identity_indicator": "semantic_identity",
+    "digest": "sha256(canonical-json(ir))",
+    "first_difference": "path-ordered-canonical-json",
+    "artifact_identity_cannot_substitute": true
+  },
+  "terminal_trace_policy": {
+    "schema": "gooo.terminal-trace/v1",
+    "compare_fields": ["terminal_reason", "effects"],
+    "effect_order": "source-order",
+    "missing_trace_status": "UNKNOWN",
+    "drift_status": "REFUTED",
+    "terminal_reason_drift_is_semantic_failure": true
+  },
+  "resolution": {
+    "status_precedence": ["REFUTED", "UNKNOWN", "CLOSED"],
+    "closed_requires": ["path_a_complete", "path_b_complete", "semantic_identity", "artifact_byte_identity", "terminal_trace_identity", "runtime_identity"],
+    "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"]
+  },
+  "measurement_policy": {
+    "inventory_exclude_paths": ["README.md"],
+    "inventory_fields": ["go_files", "gooo_files", "go_physical_lines", "gooo_physical_lines", "directories", "regular_files"],
+    "runtime_fields": ["wall_ms", "peak_rss_kib"],
+    "test_fields": ["total", "selected", "executed", "reused", "failed", "unknown"],
+    "generated_fields": ["files", "bytes"],
+    "improvement_rule": "same scenario/source/contract/toolchain digest exact integer before-after pair only",
+    "score_aggregation": "forbidden",
+    "estimated_rate": "forbidden"
+  },
+  "fixed_cases": [
+    {"id": "independent-convergence", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal"},
+    {"id": "comment-only-canonical-convergence", "source": "examples/corpus/comment-only-canonical-convergence.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal"},
+    {"id": "injected-self-propagating-semantic", "source": "examples/corpus/injected-self-propagating-semantic.gooo", "expected_status": "REFUTED", "path_b_available": true, "path_b_variant": "inject-self-propagating"},
+    {"id": "terminal-reason-drift", "source": "examples/corpus/terminal-reason-drift.gooo", "expected_status": "REFUTED", "path_b_available": true, "path_b_variant": "terminal-reason-drift"},
+    {"id": "missing-diverse-path", "source": "examples/corpus/missing-diverse-path.gooo", "expected_status": "UNKNOWN", "path_b_available": false, "path_b_variant": "missing", "unknown": {"stage": "generation", "step": "obtain-path-b", "reason": "the diverse lowerer/executor path is unavailable", "unknown_class": "missing-diverse-path", "next_operation": "restore-independent-path-b-and-rerun", "blocked_by": "path-b-not-present"}},
+    {"id": "byte-identical-replay", "source": "examples/corpus/byte-identical-replay.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal", "replay_path_a": true}
+  ],
+  "optional_inputs": [
+    {
+      "name": "gooo-two-generation-bootstrap",
+      "tag": "v0.1.1",
+      "commit": "6d2bc764f144900862ba5e127cfa19d4cec248b9",
+      "release_asset": "gooo-two-generation-release-v0.1.1-evidence.tar.gz",
+      "digest": "sha256:66fed9217a3a632e412a00feae80b87ac66fbf9fd63d4ee6e147b8d6a059ae9c",
+      "required_gate": 0,
+      "use": "optional-input-only"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+name: diverse-bootstrap-witness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-audit:
+    name: semantic-audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Go 1.27
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          cache: false
+      - name: Validate authoritative metacode
+        run: go run ./cmd/witness audit --meta .gooo/diverse-bootstrap.gooo
+
+  ci:
+    name: build-test-conformance
+    runs-on: ubuntu-latest
+    needs: semantic-audit
+    env:
+      EVIDENCE_DIR: ${{ runner.temp }}/gooo-diverse-bootstrap-witness
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Go 1.27
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          cache: false
+      - name: Prepare caller-owned output
+        run: mkdir -p "$EVIDENCE_DIR"
+      - name: Check independent import closure
+        run: ./scripts/check-independence.sh
+      - name: Build verifier
+        run: /usr/bin/time -f '%e %M' -o "$EVIDENCE_DIR/build.metric" go build -trimpath -o "$EVIDENCE_DIR/witness" ./cmd/witness
+      - name: Run Go tests and retain exact event stream
+        run: /usr/bin/time -f '%e %M' -o "$EVIDENCE_DIR/test.metric" sh -c 'go test -json ./... > "$EVIDENCE_DIR/test.json"'
+      - name: Generate canonical IR and Go artifacts
+        run: /usr/bin/time -f '%e %M' -o "$EVIDENCE_DIR/conformance.metric" "$EVIDENCE_DIR/witness" conformance --meta .gooo/diverse-bootstrap.gooo --repo-root "$GITHUB_WORKSPACE" --artifact-dir "$EVIDENCE_DIR/artifacts" --report "$EVIDENCE_DIR/conformance.json"
+      - name: Build every generated Go artifact
+        run: |
+          mkdir -p "$EVIDENCE_DIR/built"
+          /usr/bin/time -f '%e %M' -o "$EVIDENCE_DIR/generated-build.metric" sh -c '
+            set -euo pipefail
+            while IFS= read -r source; do
+              relative="${source#"$EVIDENCE_DIR/artifacts/"}"
+              case_dir="${relative%/*}"
+              name="$(basename "$source" .generated.go)"
+              mkdir -p "$EVIDENCE_DIR/built/$case_dir"
+              go build -trimpath -o "$EVIDENCE_DIR/built/$case_dir/$name" "$source"
+            done < <(find "$EVIDENCE_DIR/artifacts" -type f -name "*.generated.go" | sort)
+          '
+      - name: Run every generated Go artifact
+        run: |
+          mkdir -p "$EVIDENCE_DIR/runtime"
+          /usr/bin/time -f '%e %M' -o "$EVIDENCE_DIR/generated-run.metric" sh -c '
+            set -euo pipefail
+            while IFS= read -r binary; do
+              relative="${binary#"$EVIDENCE_DIR/built/"}"
+              case_dir="${relative%/*}"
+              name="$(basename "$binary")"
+              mkdir -p "$EVIDENCE_DIR/runtime/$case_dir"
+              "$binary" > "$EVIDENCE_DIR/runtime/$case_dir/$name.stdout"
+            done < <(find "$EVIDENCE_DIR/built" -type f ! -name "*.a" | sort)
+          '
+      - name: Assemble exact CI evidence
+        run: "$EVIDENCE_DIR/witness evidence --meta .gooo/diverse-bootstrap.gooo --repo-root \"$GITHUB_WORKSPACE\" --conformance \"$EVIDENCE_DIR/conformance.json\" --artifact-dir \"$EVIDENCE_DIR/artifacts\" --runtime-dir \"$EVIDENCE_DIR/runtime\" --evidence \"$EVIDENCE_DIR/evidence.json\" --build-metric \"$EVIDENCE_DIR/build.metric\" --test-metric \"$EVIDENCE_DIR/test.metric\" --conformance-metric \"$EVIDENCE_DIR/conformance.metric\" --generated-build-metric \"$EVIDENCE_DIR/generated-build.metric\" --generated-run-metric \"$EVIDENCE_DIR/generated-run.metric\" --test-json \"$EVIDENCE_DIR/test.json\""
+      - name: Verify evidence exists outside checkout
+        run: test -s "$EVIDENCE_DIR/evidence.json" && test "$(git status --porcelain)" = ""
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gooo-diverse-bootstrap-witness-evidence
+          path: ${{ runner.temp }}/gooo-diverse-bootstrap-witness
+          if-no-files-found: error

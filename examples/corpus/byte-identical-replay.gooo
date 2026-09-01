@@ -1,0 +1,6 @@
+program replay
+const first = "one"
+const second = "two"
+effect announce = "replay"
+emit second
+emit first

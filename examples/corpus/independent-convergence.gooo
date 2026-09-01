@@ -1,0 +1,5 @@
+# Two implementations receive these exact semantic bytes.
+program hello
+const message = "hello"
+effect announce = "hello"
+emit message

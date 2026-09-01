@@ -1,0 +1,7 @@
+// Comments and whitespace are intentionally non-semantic.
+
+program   hello
+
+const message = "hello" // trailing comment
+effect announce = "hello"
+emit message
