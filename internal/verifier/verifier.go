@@ -233,14 +233,14 @@ func runCase(meta wire.Meta, repoRoot, artifactDir string, fixed wire.FixedCase)
 		observation.Reason = "canonical semantic IR differs"
 		return observation, nil
 	}
-	if !observation.Identity.ArtifactByteIdentity {
-		observation.ActualStatus = statusRefuted
-		observation.Reason = "generated artifact bytes differ"
-		return observation, nil
-	}
 	if !observation.Identity.TerminalTraceIdentity {
 		observation.ActualStatus = statusRefuted
 		observation.Reason = "terminal reason/effect trace differs"
+		return observation, nil
+	}
+	if !observation.Identity.ArtifactByteIdentity {
+		observation.ActualStatus = statusRefuted
+		observation.Reason = "generated artifact bytes differ"
 		return observation, nil
 	}
 	if observation.ReplayIdentity != nil && (!observation.ReplayIdentity.SemanticIdentity || !observation.ReplayIdentity.ArtifactByteIdentity || !observation.ReplayIdentity.TerminalTraceIdentity) {
