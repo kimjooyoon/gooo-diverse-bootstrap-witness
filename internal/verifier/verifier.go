@@ -160,14 +160,6 @@ func Observe(metaPath, repoRoot, sourcePath, witnessID string) error {
 	if _, _, err := verifyDeclaredIdentities(meta, repoRoot); err != nil {
 		return err
 	}
-	for _, observation := range conformance.Cases {
-		if observation.ActualStatus != observation.ExpectedStatus {
-			return fmt.Errorf("conformance case %s does not match its declared status", observation.ID)
-		}
-		if observation.ActualStatus == statusUnknown && (observation.Unknown == nil || !unknownComplete(observation.Unknown)) {
-			return fmt.Errorf("conformance case %s has incomplete UNKNOWN evidence", observation.ID)
-		}
-	}
 	source, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return err
@@ -476,6 +468,14 @@ func BuildEvidence(metaPath, repoRoot, conformancePath, artifactDir, runtimeDir,
 	}
 	if _, _, err := verifyDeclaredIdentities(meta, repoRoot); err != nil {
 		return err
+	}
+	for _, observation := range conformance.Cases {
+		if observation.ActualStatus != observation.ExpectedStatus {
+			return fmt.Errorf("conformance case %s does not match its declared status", observation.ID)
+		}
+		if observation.ActualStatus == statusUnknown && (observation.Unknown == nil || !unknownComplete(observation.Unknown)) {
+			return fmt.Errorf("conformance case %s has incomplete UNKNOWN evidence", observation.ID)
+		}
 	}
 	inventory, err := measureInventory(repoRoot, meta.MeasurementPolicy.InventoryExcludePaths)
 	if err != nil {
