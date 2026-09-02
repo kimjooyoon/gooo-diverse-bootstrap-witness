@@ -30,11 +30,43 @@ jobs:
           go-version: '1.27.x'
           cache: false
       - name: Prepare caller-owned output
-        run: mkdir -p "$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
+        run: mkdir -p "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/witness-metrics"
       - name: Check independent import closure
         run: ./scripts/check-independence.sh
       - name: Build verifier
         run: /usr/bin/time -f '%e %M' -o "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/build.metric" go build -trimpath -o "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/witness" ./cmd/witness
+      - name: Observe stage0 reference witness on canonical input
+        run: |
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-a.observe.metric" \
+            "$work/witness" observe \
+            --meta .gooo/diverse-bootstrap.gooo \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source "$GITHUB_WORKSPACE/examples/corpus/independent-convergence.gooo" \
+            --witness stage0-reference-path-a
+      - name: Build and test stage0 reference witness
+        run: |
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-a.build.metric" \
+            go test -c ./internal/patha -o "$work/witness-metrics/path-a.testbin"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-a.test.metric" \
+            go test ./internal/patha
+      - name: Observe generated current witness on canonical input
+        run: |
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-b.observe.metric" \
+            "$work/witness" observe \
+            --meta .gooo/diverse-bootstrap.gooo \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --source "$GITHUB_WORKSPACE/examples/corpus/independent-convergence.gooo" \
+            --witness generated-current-path-b
+      - name: Build and test generated current witness
+        run: |
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-b.build.metric" \
+            go test -c ./internal/pathb -o "$work/witness-metrics/path-b.testbin"
+          /usr/bin/time -f '%e %M' -o "$work/witness-metrics/path-b.test.metric" \
+            go test ./internal/pathb
       - name: Run Go tests and retain exact event stream
         run: /usr/bin/time -f '%e %M' -o "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/test.metric" sh -c 'go test -json ./... > "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/test.json"'
       - name: Generate canonical IR and Go artifacts
@@ -84,7 +116,8 @@ jobs:
             --conformance-metric "$work/conformance.metric" \
             --generated-build-metric "$work/generated-build.metric" \
             --generated-run-metric "$work/generated-run.metric" \
-            --test-json "$work/test.json"
+            --test-json "$work/test.json" \
+            --witness-metrics "$work/witness-metrics"
       - name: Verify evidence exists outside checkout
         run: test -s "$RUNNER_TEMP/gooo-diverse-bootstrap-witness/evidence.json" && test "$(git status --porcelain)" = ""
       - name: Upload evidence

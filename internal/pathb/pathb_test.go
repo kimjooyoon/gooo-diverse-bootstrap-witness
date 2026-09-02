@@ -14,6 +14,7 @@ func pathBMeta() wire.Meta {
 			Keywords:        map[string]string{"program": "program", "binding": "const", "emission": "emit", "effect": "effect"},
 		},
 		Semantic: wire.SemanticSpec{IRSchema: "gooo.semantic-ir/v1"},
+		SemanticKernel: wire.SemanticKernel{Evaluation: wire.EvaluationSpec{Mutations: []wire.MutationSpec{{ID: "inject-self-propagating", Effect: "replace-binding-value", Target: "message", Value: "injected-by-path-b"}}}},
 	}
 }
 

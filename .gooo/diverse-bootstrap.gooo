@@ -1,97 +1,95 @@
 {
-  "schema": "gooo.diverse-bootstrap-witness/v1",
+  "schema": "gooo.diverse-bootstrap-witness/v2",
   "authority": "metacode",
-  "contract_id": "gooo-diverse-bootstrap-witness/v1",
+  "contract_id": "gooo-diverse-bootstrap-witness/v2",
+  "contract_evolution": {
+    "previous_schema": "gooo.diverse-bootstrap-witness/v1",
+    "previous_contract_id": "gooo-diverse-bootstrap-witness/v1",
+    "previous_denominator": 6,
+    "current_denominator": 14,
+    "append_only": true,
+    "added_fixed_case_ids": ["stage0-current-convergence", "missing-witness-identity", "missing-input-identity", "witness-disagreement", "self-approval-cycle", "forged-digest", "same-lineage-replay", "frozen-bootstrap-mismatch"],
+    "retired_fixed_case_ids": []
+  },
   "language": {
     "name": "Gooo",
     "source_extension": ".gooo",
     "comment_prefixes": ["#", "//"],
-    "keywords": {
-      "program": "program",
-      "binding": "const",
-      "emission": "emit",
-      "effect": "effect"
-    },
-    "grammar": [
-      "program <identifier>",
-      "const <identifier> = <quoted-string>",
-      "emit <identifier>",
-      "effect <identifier> = <quoted-string>"
-    ]
+    "keywords": {"program": "program", "binding": "const", "emission": "emit", "effect": "effect"},
+    "grammar": ["program <identifier>", "const <identifier> = <quoted-string>", "emit <identifier>", "effect <identifier> = <quoted-string>"]
   },
   "semantic": {
     "ir_schema": "gooo.semantic-ir/v1",
     "fields": ["schema", "program", "bindings", "emissions", "effects", "diagnostics"],
-    "normalization": [
-      "sort_bindings_by_name",
-      "preserve_emission_order",
-      "preserve_effect_order",
-      "preserve_diagnostic_order"
-    ],
+    "normalization": ["sort_bindings_by_name", "preserve_emission_order", "preserve_effect_order", "preserve_diagnostic_order"],
     "comparison": "canonical-json-sha256",
-    "comments_are_nonsemantic": true
+    "comments_are_nonsemantic": true,
+    "source_authority": "this .gooo semantic kernel; Go is bounded evaluator/runtime only",
+    "observation_fields": ["canonical_ir_digest", "decision_digest", "provenance_digest"]
+  },
+  "semantic_kernel": {
+    "source": {"path": ".gooo/kernel-source.gooo", "digest": "sha256:cc957fc8b200fab06c2d713fa7e4af14c1b98f6d6c2a975f38780f6e7555307a", "digest_scope": "exact-file-sha256"},
+    "canonical_input": {"id": "independent-convergence", "path": "examples/corpus/independent-convergence.gooo", "digest": "sha256:37ce15ce46f1dc6b0d494002b3790de33da8da3d6737fdab84eb4c7614efbf69", "digest_scope": "exact-file-sha256"},
+    "expected_observation": {"status": "CLOSED", "semantic_identity": true, "decision_identity": true, "provenance_identity": true, "required_digests": ["canonical_ir_digest", "decision_digest", "provenance_digest"]},
+    "evaluation": {
+      "authority": "semantic-kernel-source",
+      "operations": ["parse_declared_grammar", "normalize_canonical_ir", "emit_generated_go", "execute_terminal_trace", "compare_witness_observations"],
+      "mutations": [
+        {"id": "inject-self-propagating", "effect": "replace-binding-value", "target": "message", "value": "injected-by-path-b"},
+        {"id": "terminal-reason-drift", "effect": "replace-terminal-reason", "target": "terminal_reason", "value": "complete-with-drift:program:"}
+      ]
+    }
   },
   "generation_graph": [
     {"id": "source", "kind": "gooo-semantic-source", "input": null, "outputs": ["path-a", "path-b"]},
     {"id": "path-a", "kind": "independent-lowerer-executor", "implementation": "internal/patha", "input": "source", "outputs": ["path-a-ir", "path-a-artifact", "path-a-trace"]},
     {"id": "path-b", "kind": "independent-lowerer-executor", "implementation": "internal/pathb", "input": "source", "outputs": ["path-b-ir", "path-b-artifact", "path-b-trace"]},
-    {"id": "compare", "kind": "canonical-semantic-and-byte-comparison", "input": ["path-a", "path-b"], "outputs": ["case-judgment"]},
+    {"id": "compare", "kind": "canonical-semantic-decision-provenance-comparison", "input": ["path-a", "path-b"], "outputs": ["case-judgment"]},
     {"id": "run", "kind": "generated-go-build-run", "input": ["path-a-artifact", "path-b-artifact"], "outputs": ["runtime-observation"]}
   ],
   "independence_predicate": {
     "paths": ["internal/patha", "internal/pathb"],
     "allowed_shared_packages": ["internal/wire"],
-    "allowed_shared_inputs": [".gooo/diverse-bootstrap.gooo", "examples/corpus/*.gooo"],
+    "allowed_shared_inputs": [".gooo/diverse-bootstrap.gooo", ".gooo/kernel-source.gooo", "examples/corpus/*.gooo"],
     "forbidden_shared_package_kinds": ["evaluation", "lowering"],
     "require_ci_import_intersection_check": true,
-    "require_distinct_parser_lowerer_emitter_executor_sources": true
+    "require_distinct_parser_lowerer_emitter_executor_sources": true,
+    "require_independent_witnesses": true,
+    "same_lineage_status": "REFUTED",
+    "duplicate_artifact_status": "REFUTED",
+    "identity_fields": ["id", "role", "implementation", "source_digest", "lineage_id", "toolchain_id", "input_identity"]
   },
-  "canonical_semantic_comparison": {
-    "identity_indicator": "semantic_identity",
-    "digest": "sha256(canonical-json(ir))",
-    "first_difference": "path-ordered-canonical-json",
-    "artifact_identity_cannot_substitute": true
+  "witness_plan": {
+    "required_independent_count": 2,
+    "stage0_reference_witness": {"id": "stage0-reference-path-a", "role": "stage0-reference", "implementation": "internal/patha", "source_path": "internal/patha/patha.go", "source_digest": "sha256:37ef0d9c96e59266e080b92cf756e4975ba153f5e79a903e2f5df25d414e4ccb", "lineage_id": "gooo-witness-lineage-path-a-v1", "toolchain_id": "go1.27.x", "input_identity": "canonical-gooo-input-bytes-v2", "available": true, "required_gate": 1},
+    "generated_current_witness": {"id": "generated-current-path-b", "role": "generated-current", "implementation": "internal/pathb", "source_path": "internal/pathb/pathb.go", "source_digest": "sha256:fd8c43dabb7c9991969b2af8aee59db8909fd98b6810fe4aaa7d263c9fa084d2", "lineage_id": "gooo-witness-lineage-path-b-v1", "toolchain_id": "go1.27.x", "input_identity": "canonical-gooo-input-bytes-v2", "available": true, "required_gate": 1},
+    "optional_diverse_witness": {"id": "optional-two-generation-bootstrap-v0.1.1", "role": "optional-diverse", "implementation": "gooo-two-generation-bootstrap@v0.1.1", "source_path": "external-release", "source_digest": "sha256:66fed9217a3a632e412a00fe80b87ac66fbf9fd63d4ee6e147b8d6a059ae9c", "lineage_id": "optional-lineage-not-required", "toolchain_id": "not-observed", "input_identity": "optional-input-gooo-two-generation-bootstrap-v0.1.1", "available": false, "required_gate": 0},
+    "proof_claims": [
+      {"id": "foundation-kernel-and-input", "claim": "kernel source and canonical input identity", "proof_choice": "FOUNDATION", "independence_basis": "immutable source and exact input bytes are observed outside the evaluator decision", "required_evidence": ["kernel_source_digest", "canonical_input_digest"]},
+      {"id": "coherence-independent-witnesses", "claim": "independent witnesses agree on canonical observation", "proof_choice": "COHERENCE", "independence_basis": "CI import intersection, distinct implementation sources, distinct lineage IDs, and exact input identity are all explicit", "required_evidence": ["semantic_digest", "decision_digest", "provenance_digest", "lineage_id", "toolchain_id", "input_digest"]},
+      {"id": "regression-adversarial-cases", "claim": "disagreement, cycle, forgery, and frozen bootstrap mismatch remain visible", "proof_choice": "REGRESSION", "independence_basis": "fixed REFUTED vectors are evaluated and cannot be approved by a witness sharing the decision lineage", "required_evidence": ["witness-disagreement", "self-approval-cycle", "forged-digest", "frozen-bootstrap-mismatch"]}
+    ],
+    "munchhausen_trilemma": {"acknowledged": true, "foundation": "the source, input, and toolchain still require external trust and exact identity observation", "coherence": "agreement is evidence of consistency between declared independent paths, not an ultimate foundation", "regression": "fixed counterexamples detect selected failures but do not prove absence of every correlated attacker", "limitations": ["shared host and Go toolchain remain trusted", "source review and CI control plane remain outside this witness", "a bounded corpus is not a proof of the whole language"]}
   },
-  "terminal_trace_policy": {
-    "schema": "gooo.terminal-trace/v1",
-    "compare_fields": ["terminal_reason", "effects"],
-    "effect_order": "source-order",
-    "missing_trace_status": "UNKNOWN",
-    "drift_status": "REFUTED",
-    "terminal_reason_drift_is_semantic_failure": true
-  },
-  "resolution": {
-    "status_precedence": ["REFUTED", "UNKNOWN", "CLOSED"],
-    "closed_requires": ["path_a_complete", "path_b_complete", "semantic_identity", "artifact_byte_identity", "terminal_trace_identity", "runtime_identity"],
-    "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"]
-  },
-  "measurement_policy": {
-    "inventory_exclude_paths": ["README.md"],
-    "inventory_fields": ["go_files", "gooo_files", "go_physical_lines", "gooo_physical_lines", "directories", "regular_files"],
-    "runtime_fields": ["wall_ms", "peak_rss_kib"],
-    "test_fields": ["total", "selected", "executed", "reused", "failed", "unknown"],
-    "generated_fields": ["files", "bytes"],
-    "improvement_rule": "same scenario/source/contract/toolchain digest exact integer before-after pair only",
-    "score_aggregation": "forbidden",
-    "estimated_rate": "forbidden"
-  },
+  "canonical_semantic_comparison": {"identity_indicator": "canonical_observation_identity", "digest": "sha256(canonical-json({ir,decision,provenance}))", "first_difference": "path-ordered-canonical-json", "artifact_identity_cannot_substitute": true},
+  "terminal_trace_policy": {"schema": "gooo.terminal-trace/v1", "compare_fields": ["terminal_reason", "effects"], "effect_order": "source-order", "missing_trace_status": "UNKNOWN", "drift_status": "REFUTED", "terminal_reason_drift_is_semantic_failure": true},
+  "resolution": {"status_precedence": ["REFUTED", "UNKNOWN", "CLOSED"], "closed_requires": ["path_a_complete", "path_b_complete", "semantic_identity", "decision_identity", "provenance_identity", "artifact_byte_identity", "terminal_trace_identity", "runtime_identity", "two_independent_witnesses", "input_identity"], "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"], "refuted_reasons": ["forged-digest", "witness-disagreement", "self-approval-cycle", "same-lineage-replay", "frozen-bootstrap-mismatch"]},
+  "measurement_policy": {"inventory_exclude_paths": ["README.md"], "inventory_fields": ["go_files", "gooo_files", "go_physical_lines", "gooo_physical_lines", "directories", "regular_files"], "runtime_fields": ["wall_ms", "peak_rss_kib"], "witness_runtime_fields": ["wall_ms", "peak_rss_kib", "build_ms", "test_ms"], "test_fields": ["total", "selected", "executed", "reused", "failed", "unknown"], "generated_fields": ["files", "bytes"], "improvement_rule": "exact matched before-after pair only; never infer from a score or aggregate", "improvement_pair_fields": ["scenario_id", "input_digest", "contract_digest", "toolchain_id", "witness_id", "trial_index"], "improvement_missing_status": "UNKNOWN", "score_aggregation": "forbidden", "estimated_rate": "forbidden"},
   "fixed_cases": [
-    {"id": "independent-convergence", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal"},
-    {"id": "comment-only-canonical-convergence", "source": "examples/corpus/comment-only-canonical-convergence.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal"},
-    {"id": "injected-self-propagating-semantic", "source": "examples/corpus/injected-self-propagating-semantic.gooo", "expected_status": "REFUTED", "path_b_available": true, "path_b_variant": "inject-self-propagating"},
-    {"id": "terminal-reason-drift", "source": "examples/corpus/terminal-reason-drift.gooo", "expected_status": "REFUTED", "path_b_available": true, "path_b_variant": "terminal-reason-drift"},
-    {"id": "missing-diverse-path", "source": "examples/corpus/missing-diverse-path.gooo", "expected_status": "UNKNOWN", "path_b_available": false, "path_b_variant": "missing", "unknown": {"stage": "generation", "step": "obtain-path-b", "reason": "the diverse lowerer/executor path is unavailable", "unknown_class": "missing-diverse-path", "next_operation": "restore-independent-path-b-and-rerun", "blocked_by": "path-b-not-present"}},
-    {"id": "byte-identical-replay", "source": "examples/corpus/byte-identical-replay.gooo", "expected_status": "CLOSED", "path_b_available": true, "path_b_variant": "normal", "replay_path_a": true}
+    {"id": "independent-convergence", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "CLOSED", "scenario_class": "normal", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "complete"},
+    {"id": "comment-only-canonical-convergence", "source": "examples/corpus/comment-only-canonical-convergence.gooo", "expected_status": "CLOSED", "scenario_class": "normal", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "complete"},
+    {"id": "injected-self-propagating-semantic", "source": "examples/corpus/injected-self-propagating-semantic.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "inject-self-propagating", "identity_mode": "complete"},
+    {"id": "terminal-reason-drift", "source": "examples/corpus/terminal-reason-drift.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "terminal-reason-drift", "identity_mode": "complete"},
+    {"id": "missing-diverse-path", "source": "examples/corpus/missing-diverse-path.gooo", "expected_status": "UNKNOWN", "scenario_class": "unknown", "path_b_available": false, "path_b_variant": "missing", "identity_mode": "missing-witness", "unknown": {"stage": "generation", "step": "obtain-path-b", "reason": "the diverse lowerer/executor path is unavailable", "unknown_class": "missing-diverse-path", "next_operation": "restore-independent-path-b-and-rerun", "blocked_by": "path-b-not-present"}},
+    {"id": "byte-identical-replay", "source": "examples/corpus/byte-identical-replay.gooo", "expected_status": "CLOSED", "scenario_class": "normal", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "complete", "replay_path_a": true},
+    {"id": "stage0-current-convergence", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "CLOSED", "scenario_class": "normal", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "complete"},
+    {"id": "missing-witness-identity", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "UNKNOWN", "scenario_class": "unknown", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "missing-lineage-toolchain-input", "unknown": {"stage": "identity", "step": "resolve-witness-lineage-toolchain-input", "reason": "witness, lineage, toolchain, or input identity evidence is incomplete", "unknown_class": "missing-witness-identity", "next_operation": "restore-witness-lineage-toolchain-input-identities-and-rerun", "blocked_by": "incomplete-independent-witness-identity"}},
+    {"id": "missing-input-identity", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "UNKNOWN", "scenario_class": "unknown", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "missing-input", "unknown": {"stage": "identity", "step": "bind-canonical-input", "reason": "canonical input identity is unavailable", "unknown_class": "missing-input-identity", "next_operation": "restore-exact-canonical-input-digest-and-rerun", "blocked_by": "missing-input-identity"}},
+    {"id": "witness-disagreement", "source": "examples/corpus/injected-self-propagating-semantic.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "inject-self-propagating", "identity_mode": "complete"},
+    {"id": "self-approval-cycle", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "self-approval-cycle", "self_approval_cycle": true},
+    {"id": "forged-digest", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "forged-digest", "path_b_digest_claim": "sha256:0000000000000000000000000000000000000000000000000000000000000000"},
+    {"id": "same-lineage-replay", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "same-lineage"},
+    {"id": "frozen-bootstrap-mismatch", "source": "examples/corpus/independent-convergence.gooo", "expected_status": "REFUTED", "scenario_class": "refuted", "path_b_available": true, "path_b_variant": "normal", "identity_mode": "frozen-bootstrap-mismatch", "frozen_bootstrap_mismatch": true, "frozen_bootstrap_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}
   ],
-  "optional_inputs": [
-    {
-      "name": "gooo-two-generation-bootstrap",
-      "tag": "v0.1.1",
-      "commit": "6d2bc764f144900862ba5e127cfa19d4cec248b9",
-      "release_asset": "gooo-two-generation-release-v0.1.1-evidence.tar.gz",
-      "digest": "sha256:66fed9217a3a632e412a00feae80b87ac66fbf9fd63d4ee6e147b8d6a059ae9c",
-      "required_gate": 0,
-      "use": "optional-input-only"
-    }
-  ]
+  "optional_inputs": [{"name": "gooo-two-generation-bootstrap", "tag": "v0.1.1", "commit": "6d2bc764f144900862ba5e127cfa19d4cec248b9", "release_asset": "gooo-two-generation-release-v0.1.1-evidence.tar.gz", "digest": "sha256:66fed9217a3a632e412a00fe80b87ac66fbf9fd63d4ee6e147b8d6a059ae9c", "required_gate": 0, "use": "optional-input-only"}]
 }

@@ -1,0 +1,9 @@
+program diverse_bootstrap_kernel
+const authority = "semantic-kernel-source"
+const witness_rule = "two independent witnesses must agree on canonical IR, decision, and provenance"
+const unknown_rule = "missing witness, lineage, toolchain, or input identity requires six-field UNKNOWN"
+const refutation_rule = "forged digest, disagreement, self-approval cycle, or frozen bootstrap mismatch is REFUTED"
+emit authority
+emit witness_rule
+emit unknown_rule
+emit refutation_rule

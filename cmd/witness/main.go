@@ -11,17 +11,33 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fail(errors.New("command is required: audit, conformance, or evidence"))
+		fail(errors.New("command is required: audit, observe, conformance, or evidence"))
 	}
 	switch os.Args[1] {
 	case "audit":
 		runAudit(os.Args[2:])
 	case "conformance":
 		runConformance(os.Args[2:])
+	case "observe":
+		runObserve(os.Args[2:])
 	case "evidence":
 		runEvidence(os.Args[2:])
 	default:
 		fail(fmt.Errorf("unknown command %q", os.Args[1]))
+	}
+}
+
+func runObserve(args []string) {
+	flags := flag.NewFlagSet("observe", flag.ContinueOnError)
+	meta := flags.String("meta", ".gooo/diverse-bootstrap.gooo", "authoritative .gooo metacode")
+	repoRoot := flags.String("repo-root", ".", "repository root")
+	source := flags.String("source", "", "caller-selected .gooo input")
+	witness := flags.String("witness", "", "declared witness identity")
+	if err := flags.Parse(args); err != nil {
+		fail(err)
+	}
+	if err := verifier.Observe(*meta, *repoRoot, *source, *witness); err != nil {
+		fail(err)
 	}
 }
 
@@ -65,10 +81,11 @@ func runEvidence(args []string) {
 	generatedBuildMetric := flags.String("generated-build-metric", "", "generated artifact build elapsed/RSS metric")
 	generatedRunMetric := flags.String("generated-run-metric", "", "generated artifact run elapsed/RSS metric")
 	testJSON := flags.String("test-json", "", "go test -json output")
+	witnessMetrics := flags.String("witness-metrics", "", "caller-owned per-witness metric directory")
 	if err := flags.Parse(args); err != nil {
 		fail(err)
 	}
-	err := verifier.BuildEvidence(*meta, *repoRoot, *conformance, *artifactDir, *runtimeDir, *evidence, *buildMetric, *testMetric, *conformanceMetric, *generatedBuildMetric, *generatedRunMetric, *testJSON)
+	err := verifier.BuildEvidence(*meta, *repoRoot, *conformance, *artifactDir, *runtimeDir, *evidence, *buildMetric, *testMetric, *conformanceMetric, *generatedBuildMetric, *generatedRunMetric, *testJSON, *witnessMetrics)
 	if err != nil {
 		fail(err)
 	}
