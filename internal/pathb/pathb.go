@@ -37,7 +37,7 @@ func Generate(meta wire.Meta, source []byte, variant string) (wire.GeneratedResu
 		return wire.GeneratedResult{}, err
 	}
 	ir := makeIR(meta, model, variant)
-	trace := runExecutor(ir, variant)
+	trace := runExecutor(meta, ir, variant)
 	artifact := makeArtifact(ir, trace)
 	return wire.GeneratedResult{IR: ir, ArtifactBytes: artifact, Trace: trace}, nil
 }
@@ -118,6 +118,7 @@ func assemble(meta wire.Meta, statements []statement) (programModel, error) {
 }
 
 func makeIR(meta wire.Meta, model programModel, variant string) wire.SemanticIR {
+	mutation := findMutation(meta, variant)
 	keys := make([]string, 0, len(model.declarations))
 	for key := range model.declarations {
 		keys = append(keys, key)
@@ -126,8 +127,8 @@ func makeIR(meta wire.Meta, model programModel, variant string) wire.SemanticIR 
 	ir := wire.SemanticIR{Schema: meta.Semantic.IRSchema, Program: model.name}
 	for _, key := range keys {
 		value := model.declarations[key]
-		if variant == "inject-self-propagating" && key == "message" {
-			value = "injected-by-path-b"
+		if mutation.Effect == "replace-binding-value" && key == mutation.Target {
+			value = mutation.Value
 		}
 		ir.Bindings = append(ir.Bindings, wire.Binding{Name: key, Value: value})
 	}
@@ -143,10 +144,11 @@ func makeIR(meta wire.Meta, model programModel, variant string) wire.SemanticIR 
 	return ir
 }
 
-func runExecutor(ir wire.SemanticIR, variant string) wire.TerminalTrace {
+func runExecutor(meta wire.Meta, ir wire.SemanticIR, variant string) wire.TerminalTrace {
 	reason := "complete:program:" + ir.Program
-	if variant == "terminal-reason-drift" {
-		reason = "complete-with-drift:program:" + ir.Program
+	mutation := findMutation(meta, variant)
+	if mutation.Effect == "replace-terminal-reason" {
+		reason = mutation.Value + ir.Program
 	}
 	trace := wire.TerminalTrace{Schema: "gooo.terminal-trace/v1", TerminalReason: reason}
 	for _, effect := range ir.Effects {
@@ -163,6 +165,15 @@ func runExecutor(ir wire.SemanticIR, variant string) wire.TerminalTrace {
 		trace.Effects = append(trace.Effects, wire.EffectEvent{Kind: "emission", Name: name, Value: value})
 	}
 	return trace
+}
+
+func findMutation(meta wire.Meta, variant string) wire.MutationSpec {
+	for _, mutation := range meta.SemanticKernel.Evaluation.Mutations {
+		if mutation.ID == variant {
+			return mutation
+		}
+	}
+	return wire.MutationSpec{}
 }
 
 func makeArtifact(ir wire.SemanticIR, trace wire.TerminalTrace) []byte {

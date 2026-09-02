@@ -7,16 +7,29 @@ type Meta struct {
 	Schema              string              `json:"schema"`
 	Authority           string              `json:"authority"`
 	ContractID          string              `json:"contract_id"`
+	ContractEvolution   ContractEvolution   `json:"contract_evolution"`
 	Language            LanguageSpec        `json:"language"`
 	Semantic            SemanticSpec        `json:"semantic"`
+	SemanticKernel      SemanticKernel      `json:"semantic_kernel"`
 	GenerationGraph     []GraphNode         `json:"generation_graph"`
 	Independence        IndependenceSpec    `json:"independence_predicate"`
+	WitnessPlan         WitnessPlan         `json:"witness_plan"`
 	CanonicalComparison CanonicalComparison `json:"canonical_semantic_comparison"`
 	TerminalTracePolicy TerminalTracePolicy `json:"terminal_trace_policy"`
 	Resolution          ResolutionSpec      `json:"resolution"`
 	MeasurementPolicy   MeasurementPolicy   `json:"measurement_policy"`
 	FixedCases          []FixedCase         `json:"fixed_cases"`
 	OptionalInputs      []OptionalInput     `json:"optional_inputs"`
+}
+
+type ContractEvolution struct {
+	PreviousSchema      string   `json:"previous_schema"`
+	PreviousContractID  string   `json:"previous_contract_id"`
+	PreviousDenominator int      `json:"previous_denominator"`
+	CurrentDenominator  int      `json:"current_denominator"`
+	AppendOnly          bool     `json:"append_only"`
+	AddedFixedCaseIDs   []string `json:"added_fixed_case_ids"`
+	RetiredFixedCaseIDs []string `json:"retired_fixed_case_ids"`
 }
 
 type LanguageSpec struct {
@@ -33,6 +46,49 @@ type SemanticSpec struct {
 	Normalization          []string `json:"normalization"`
 	Comparison             string   `json:"comparison"`
 	CommentsAreNonsemantic bool     `json:"comments_are_nonsemantic"`
+	SourceAuthority        string   `json:"source_authority"`
+	ObservationFields      []string `json:"observation_fields"`
+}
+
+type SemanticKernel struct {
+	Source              KernelSource        `json:"source"`
+	CanonicalInput      CanonicalInput      `json:"canonical_input"`
+	ExpectedObservation ExpectedObservation `json:"expected_observation"`
+	Evaluation          EvaluationSpec      `json:"evaluation"`
+}
+
+type KernelSource struct {
+	Path        string `json:"path"`
+	Digest      string `json:"digest"`
+	DigestScope string `json:"digest_scope"`
+}
+
+type CanonicalInput struct {
+	ID          string `json:"id"`
+	Path        string `json:"path"`
+	Digest      string `json:"digest"`
+	DigestScope string `json:"digest_scope"`
+}
+
+type ExpectedObservation struct {
+	Status             string   `json:"status"`
+	SemanticIdentity   bool     `json:"semantic_identity"`
+	DecisionIdentity   bool     `json:"decision_identity"`
+	ProvenanceIdentity bool     `json:"provenance_identity"`
+	RequiredDigests    []string `json:"required_digests"`
+}
+
+type EvaluationSpec struct {
+	Authority  string         `json:"authority"`
+	Operations []string       `json:"operations"`
+	Mutations  []MutationSpec `json:"mutations"`
+}
+
+type MutationSpec struct {
+	ID     string `json:"id"`
+	Effect string `json:"effect"`
+	Target string `json:"target"`
+	Value  string `json:"value"`
 }
 
 type GraphNode struct {
@@ -50,6 +106,48 @@ type IndependenceSpec struct {
 	ForbiddenSharedPackageKinds      []string `json:"forbidden_shared_package_kinds"`
 	RequireCIImportIntersectionCheck bool     `json:"require_ci_import_intersection_check"`
 	RequireDistinctSources           bool     `json:"require_distinct_parser_lowerer_emitter_executor_sources"`
+	RequireIndependentWitnesses      bool     `json:"require_independent_witnesses"`
+	SameLineageStatus                string   `json:"same_lineage_status"`
+	DuplicateArtifactStatus          string   `json:"duplicate_artifact_status"`
+	IdentityFields                   []string `json:"identity_fields"`
+}
+
+type WitnessPlan struct {
+	RequiredIndependentCount int              `json:"required_independent_count"`
+	Stage0Reference          WitnessIdentity  `json:"stage0_reference_witness"`
+	GeneratedCurrent         WitnessIdentity  `json:"generated_current_witness"`
+	OptionalDiverse          *WitnessIdentity `json:"optional_diverse_witness,omitempty"`
+	ProofClaims              []ProofClaim     `json:"proof_claims"`
+	Trilemma                 TrilemmaNote     `json:"munchhausen_trilemma"`
+}
+
+type WitnessIdentity struct {
+	ID             string `json:"id"`
+	Role           string `json:"role"`
+	Implementation string `json:"implementation"`
+	SourcePath     string `json:"source_path"`
+	SourceDigest   string `json:"source_digest"`
+	LineageID      string `json:"lineage_id"`
+	ToolchainID    string `json:"toolchain_id"`
+	InputIdentity  string `json:"input_identity"`
+	Available      bool   `json:"available"`
+	RequiredGate   int    `json:"required_gate"`
+}
+
+type ProofClaim struct {
+	ID                string   `json:"id"`
+	Claim             string   `json:"claim"`
+	ProofChoice       string   `json:"proof_choice"`
+	IndependenceBasis string   `json:"independence_basis"`
+	RequiredEvidence  []string `json:"required_evidence"`
+}
+
+type TrilemmaNote struct {
+	Acknowledged bool     `json:"acknowledged"`
+	Foundation  string   `json:"foundation"`
+	Coherence   string   `json:"coherence"`
+	Regression  string   `json:"regression"`
+	Limitations []string `json:"limitations"`
 }
 
 type CanonicalComparison struct {
@@ -72,6 +170,7 @@ type ResolutionSpec struct {
 	StatusPrecedence []string `json:"status_precedence"`
 	ClosedRequires   []string `json:"closed_requires"`
 	UnknownFields    []string `json:"unknown_fields"`
+	RefutedReasons   []string `json:"refuted_reasons"`
 }
 
 type MeasurementPolicy struct {
@@ -83,16 +182,25 @@ type MeasurementPolicy struct {
 	ImprovementRule       string   `json:"improvement_rule"`
 	ScoreAggregation      string   `json:"score_aggregation"`
 	EstimatedRate         string   `json:"estimated_rate"`
+	WitnessRuntimeFields  []string `json:"witness_runtime_fields"`
+	ImprovementMissingStatus string `json:"improvement_missing_status"`
+	ImprovementPairFields []string `json:"improvement_pair_fields"`
 }
 
 type FixedCase struct {
-	ID             string         `json:"id"`
-	Source         string         `json:"source"`
-	ExpectedStatus string         `json:"expected_status"`
-	PathBAvailable bool           `json:"path_b_available"`
-	PathBVariant   string         `json:"path_b_variant"`
-	Unknown        *UnknownRecord `json:"unknown,omitempty"`
-	ReplayPathA    bool           `json:"replay_path_a,omitempty"`
+	ID                string         `json:"id"`
+	Source            string         `json:"source"`
+	ExpectedStatus    string         `json:"expected_status"`
+	ScenarioClass     string         `json:"scenario_class"`
+	PathBAvailable    bool           `json:"path_b_available"`
+	PathBVariant      string         `json:"path_b_variant"`
+	IdentityMode      string         `json:"identity_mode"`
+	DigestClaim       string         `json:"path_b_digest_claim,omitempty"`
+	SelfApprovalCycle bool           `json:"self_approval_cycle,omitempty"`
+	FrozenBootstrapMismatch bool     `json:"frozen_bootstrap_mismatch,omitempty"`
+	FrozenBootstrapDigest string      `json:"frozen_bootstrap_digest,omitempty"`
+	Unknown           *UnknownRecord `json:"unknown,omitempty"`
+	ReplayPathA       bool           `json:"replay_path_a,omitempty"`
 }
 
 type OptionalInput struct {
@@ -143,33 +251,87 @@ type GeneratedResult struct {
 }
 
 type PathObservation struct {
-	Available      bool   `json:"available"`
-	SemanticDigest string `json:"semantic_digest,omitempty"`
-	ArtifactDigest string `json:"artifact_digest,omitempty"`
-	TraceDigest    string `json:"trace_digest,omitempty"`
-	ArtifactPath   string `json:"artifact_path,omitempty"`
-	IRPath         string `json:"ir_path,omitempty"`
-	TracePath      string `json:"trace_path,omitempty"`
+	Available         bool   `json:"available"`
+	SemanticDigest    string `json:"semantic_digest,omitempty"`
+	DecisionDigest    string `json:"decision_digest,omitempty"`
+	ProvenanceDigest  string `json:"provenance_digest,omitempty"`
+	ObservationDigest string `json:"observation_digest,omitempty"`
+	ArtifactDigest    string `json:"artifact_digest,omitempty"`
+	TraceDigest       string `json:"trace_digest,omitempty"`
+	ArtifactPath      string `json:"artifact_path,omitempty"`
+	IRPath            string `json:"ir_path,omitempty"`
+	TracePath         string `json:"trace_path,omitempty"`
 }
 
 type IdentityIndicators struct {
 	SemanticIdentity      bool  `json:"semantic_identity"`
+	DecisionIdentity      bool  `json:"decision_identity"`
+	ProvenanceIdentity    bool  `json:"provenance_identity"`
 	ArtifactByteIdentity  bool  `json:"artifact_byte_identity"`
 	TerminalTraceIdentity bool  `json:"terminal_trace_identity"`
 	RuntimeIdentity       *bool `json:"runtime_identity,omitempty"`
 }
 
+type WitnessObservation struct {
+	ID                string `json:"id"`
+	Role              string `json:"role"`
+	Implementation    string `json:"implementation"`
+	SourceDigest      string `json:"source_digest"`
+	LineageID         string `json:"lineage_id"`
+	ToolchainID       string `json:"toolchain_id"`
+	InputIdentity     string `json:"input_identity"`
+	InputDigest       string `json:"input_digest"`
+	SemanticDigest    string `json:"semantic_digest"`
+	DecisionDigest    string `json:"decision_digest"`
+	ProvenanceDigest  string `json:"provenance_digest"`
+	ObservationDigest string `json:"observation_digest"`
+	Independent       bool   `json:"independent"`
+}
+
+type ProofReceipt struct {
+	ClaimID           string `json:"claim_id"`
+	Claim             string `json:"claim"`
+	ProofChoice       string `json:"proof_choice"`
+	Status            string `json:"status"`
+	IndependenceBasis string `json:"independence_basis"`
+	EvidenceDigest    string `json:"evidence_digest"`
+}
+
+type BootstrapObservation struct {
+	RequiredIndependentCount int              `json:"required_independent_count"`
+	KernelSourceDigest      string           `json:"kernel_source_digest"`
+	CanonicalInputDigest    string           `json:"canonical_input_digest"`
+	Stage0Reference         WitnessIdentity  `json:"stage0_reference_witness"`
+	GeneratedCurrent        WitnessIdentity  `json:"generated_current_witness"`
+	OptionalDiverse         *WitnessIdentity `json:"optional_diverse_witness,omitempty"`
+	Trilemma                TrilemmaNote     `json:"munchhausen_trilemma"`
+}
+
+type Denominator struct {
+	ID                string         `json:"id"`
+	Version           string         `json:"version"`
+	FixedCaseCount    int            `json:"fixed_case_count"`
+	PreviousCaseCount int            `json:"previous_case_count"`
+	AddedCaseCount    int            `json:"added_case_count"`
+	RetiredCaseCount  int            `json:"retired_case_count"`
+	StatusCounts      map[string]int `json:"status_counts"`
+	CaseIDs           []string       `json:"case_ids"`
+	AppendOnly        bool           `json:"append_only"`
+}
+
 type CaseObservation struct {
-	ID             string              `json:"id"`
-	ExpectedStatus string              `json:"expected_status"`
-	ActualStatus   string              `json:"actual_status"`
-	SourceDigest   string              `json:"source_digest"`
-	PathA          PathObservation     `json:"path_a"`
-	PathB          PathObservation     `json:"path_b"`
-	ReplayIdentity *IdentityIndicators `json:"replay_identity,omitempty"`
-	Identity       IdentityIndicators  `json:"identity"`
-	Reason         string              `json:"reason"`
-	Unknown        *UnknownRecord      `json:"unknown,omitempty"`
+	ID             string               `json:"id"`
+	ExpectedStatus string               `json:"expected_status"`
+	ActualStatus   string               `json:"actual_status"`
+	SourceDigest   string               `json:"source_digest"`
+	PathA          PathObservation      `json:"path_a"`
+	PathB          PathObservation      `json:"path_b"`
+	Witnesses      []WitnessObservation `json:"witnesses,omitempty"`
+	ReplayIdentity *IdentityIndicators  `json:"replay_identity,omitempty"`
+	Identity       IdentityIndicators   `json:"identity"`
+	ProofReceipts  []ProofReceipt       `json:"proof_receipts,omitempty"`
+	Reason         string               `json:"reason"`
+	Unknown        *UnknownRecord       `json:"unknown,omitempty"`
 }
 
 type UnknownRecord struct {
@@ -182,11 +344,17 @@ type UnknownRecord struct {
 }
 
 type ConformanceReport struct {
-	Schema         string            `json:"schema"`
-	ContractDigest string            `json:"contract_digest"`
-	SuiteStatus    string            `json:"suite_status"`
-	FixedCaseCount int               `json:"fixed_case_count"`
-	Cases          []CaseObservation `json:"cases"`
+	Schema               string            `json:"schema"`
+	ContractVersion      string            `json:"contract_version"`
+	ContractDigest       string            `json:"contract_digest"`
+	KernelSourceDigest   string            `json:"kernel_source_digest"`
+	CanonicalInputDigest string            `json:"canonical_input_digest"`
+	SuiteStatus          string            `json:"suite_status"`
+	FixedCaseCount       int               `json:"fixed_case_count"`
+	Denominator          Denominator       `json:"denominator"`
+	Bootstrap            BootstrapObservation `json:"bootstrap"`
+	ProofReceipts        []ProofReceipt    `json:"proof_receipts"`
+	Cases                []CaseObservation `json:"cases"`
 }
 
 type InventoryMetrics struct {
@@ -236,20 +404,44 @@ type AuthorityMetrics struct {
 	RepositoryWrites                int `json:"repository_writes"`
 	InputRepositoryWrites           int `json:"input_repository_writes"`
 	GeneratedOutputInsideRepository int `json:"generated_output_inside_repository"`
+	CrossProjectRequiredGates       int `json:"cross_project_required_gates"`
 	AutoCommitAuthority             int `json:"auto_commit_authority"`
 	AutoPushAuthority               int `json:"auto_push_authority"`
 	AutoMergeAuthority              int `json:"auto_merge_authority"`
 }
 
+type WitnessRuntimeObservation struct {
+	WitnessID   string `json:"witness_id"`
+	Role        string `json:"role"`
+	ScenarioID  string `json:"scenario_id"`
+	InputDigest string `json:"input_digest"`
+	ToolchainID string `json:"toolchain_id"`
+	WallMS      int64  `json:"wall_ms"`
+	PeakRSSKiB  int64  `json:"peak_rss_kib"`
+	BuildMS     int64  `json:"build_ms"`
+	TestMS      int64  `json:"test_ms"`
+}
+
+type ImprovementObservation struct {
+	Status      string        `json:"status"`
+	Improvement *int64        `json:"improvement"`
+	MatchedPair bool          `json:"matched_pair"`
+	Unknown     *UnknownRecord `json:"unknown,omitempty"`
+}
+
 type Evidence struct {
-	Schema             string                  `json:"schema"`
-	ContractDigest     string                  `json:"contract_digest"`
-	SuiteStatus        string                  `json:"suite_status"`
-	Conformance        ConformanceReport       `json:"conformance"`
-	Inventory          InventoryMetrics        `json:"inventory"`
-	Runtime            RuntimeMetrics          `json:"runtime"`
-	Tests              TestMetrics             `json:"tests"`
-	GeneratedArtifacts GeneratedMetrics        `json:"generated_artifacts"`
-	RuntimeExecution   RuntimeExecutionMetrics `json:"runtime_execution"`
-	Authority          AuthorityMetrics        `json:"authority"`
+	Schema             string                     `json:"schema"`
+	ContractVersion    string                     `json:"contract_version"`
+	ContractDigest     string                     `json:"contract_digest"`
+	SuiteStatus        string                     `json:"suite_status"`
+	Conformance        ConformanceReport          `json:"conformance"`
+	Bootstrap          BootstrapObservation       `json:"bootstrap"`
+	Inventory          InventoryMetrics           `json:"inventory"`
+	Runtime            RuntimeMetrics             `json:"runtime"`
+	WitnessRuntime     []WitnessRuntimeObservation `json:"witness_runtime"`
+	Tests              TestMetrics                `json:"tests"`
+	GeneratedArtifacts GeneratedMetrics           `json:"generated_artifacts"`
+	RuntimeExecution   RuntimeExecutionMetrics    `json:"runtime_execution"`
+	Improvement        ImprovementObservation     `json:"improvement"`
+	Authority          AuthorityMetrics           `json:"authority"`
 }

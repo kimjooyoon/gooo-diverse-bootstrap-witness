@@ -29,32 +29,41 @@ hard to audit, so the project aims to minimize those seeds.
 
 ## What this witness changes
 
-The authoritative `.gooo` contract declares one source node and two distinct
-parser/lowerer/emitter/executor nodes. `path-a` and `path-b` may share only the
-wire schema and the fixture bytes. CI computes their dependency intersection
-and fails if another internal package is shared. Each path independently
-produces:
+The authoritative `.gooo` semantic kernel declares the source, canonical
+input, stage0/reference witness, generated/current witness, optional diverse
+witness, expected observation, and bounded evaluation operations. It also
+declares one source node and two distinct parser/lowerer/emitter/executor
+nodes. `path-a` and `path-b` may share only the wire schema and the fixture
+bytes. CI computes their dependency intersection and fails if another
+internal package is shared. Each path independently produces:
 
 1. canonical semantic IR;
 2. generated Go source that CI builds and runs; and
 3. a terminal reason plus ordered effect trace.
 
-The verifier reports independent indicators for semantic identity, generated
-artifact byte identity, terminal-trace identity, and runtime identity. A case
-cannot become `CLOSED` because only one of those indicators matches. The
-precedence is `REFUTED > UNKNOWN > CLOSED`; unavailable evidence is not silently
+The verifier reports independent indicators for semantic identity, decision
+identity, provenance identity, generated artifact byte identity, terminal-trace
+identity, runtime identity, and witness independence. A case cannot become
+`CLOSED` because only one of those indicators matches. Two identical artifacts
+from one evaluator lineage do not count as two witnesses. The precedence is
+`REFUTED > UNKNOWN > CLOSED`; unavailable identity evidence is not silently
 treated as convergence.
 
 ## Counterevidence and closure conditions
 
-The fixed corpus is a small executable falsification suite:
+The append-only fixed corpus is a small executable falsification suite:
 
 - semantic IR divergence is `REFUTED`;
 - generated artifact byte divergence is `REFUTED`;
 - terminal-reason/effect drift is `REFUTED`;
 - an absent diverse path is `UNKNOWN` with six required next-operation fields;
+- missing witness, lineage, toolchain, or input identity is `UNKNOWN` with the
+  same six fields;
+- a same-lineage replay, forged digest, self-approval cycle, or frozen
+  bootstrap mismatch is `REFUTED`;
 - exact replay and comment-insensitive canonical convergence can be `CLOSED`
-  only when all required identities and generated runtime outputs match.
+  only when all required identities, independent witness metadata, and
+  generated runtime outputs match.
 
 The injected path-B case is a controlled mutation, not a claim that every
 possible malicious mutation has been modeled. It proves that this contract
@@ -80,6 +89,13 @@ shared trust is intentionally visible rather than hidden behind the word
 independent environments, source review, signed provenance, and a broader
 corpus. This repository makes no global-language self-improvement claim.
 
+FOUNDATION, COHERENCE, and REGRESSION are recorded as separate proof choices
+with their independence grounds in the machine evidence. The FOUNDATION claim
+still depends on externally observed source and input identity; COHERENCE is
+only agreement among the declared paths; REGRESSION covers the fixed
+counterexamples. This explicitly acknowledges the Münchhausen trilemma rather
+than claiming to have escaped it.
+
 ## Optional predecessor input and improvements
 
 `gooo-two-generation-bootstrap v0.1.1` is retained only as a digest-pinned
@@ -97,7 +113,8 @@ draft, attaching all assets, then publishing it; this repository preserves the
 historical mutable v0.1.0 and uses the enabled policy for later releases.
 
 An improvement claim is accepted only for an exact before/after pair with the
-same scenario, source digest, contract digest, and toolchain digest, and with
-integer measurements on both sides. Scores, weighted averages, and estimated
-rates are not evidence of improvement and are forbidden by the `.gooo`
-contract.
+same scenario, input digest, contract digest, toolchain, witness, and trial,
+and with integer measurements on both sides. This run has no such pair, so
+`improvement` is `null` with status `UNKNOWN`. Scores, weighted averages, and
+estimated rates are not evidence of improvement and are forbidden by the
+`.gooo` contract.
