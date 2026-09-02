@@ -106,8 +106,9 @@ The repository release policy is recorded in
 administrator-read API, so a regular Actions GITHUB_TOKEN 403 is recorded as
 insufficient observation rather than inferred as enabled=false. The release
 workflow instead verifies the public release API after publication and fails
-closed unless immutable=true, the exact annotated tag object target, one asset,
-and its expected digest all match. GitHub documents that immutable releases
+closed unless immutable=true, the exact annotated tag object target, the source
+archive plus the exact-commit CI evidence dossier, and both expected digests all
+match. GitHub documents that immutable releases
 lock the associated tag and assets after publication and recommends creating a
 draft, attaching all assets, then publishing it; this repository preserves the
 historical mutable v0.1.0 and uses the enabled policy for later releases.
@@ -115,6 +116,8 @@ historical mutable v0.1.0 and uses the enabled policy for later releases.
 An improvement claim is accepted only for an exact before/after pair with the
 same scenario, input digest, contract digest, toolchain, witness, and trial,
 and with integer measurements on both sides. This run has no such pair, so
-`improvement` is `null` with status `UNKNOWN`. Scores, weighted averages, and
-estimated rates are not evidence of improvement and are forbidden by the
-`.gooo` contract.
+`improvement` is `null` with status `UNKNOWN`. Runtime wall/build/test/RSS
+fields are integers when observed; cache hits/misses are integers when
+observed and otherwise are explicit `null` plus `UNKNOWN`. Scores, weighted
+averages, and estimated rates are not evidence of improvement and are
+forbidden by the `.gooo` contract.

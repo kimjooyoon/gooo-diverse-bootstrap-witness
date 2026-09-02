@@ -15,8 +15,12 @@ cases, and the optional digest-pinned `gooo-two-generation-bootstrap v0.1.1`
 input. Go implements the parser, lowerers, executors, and verifier; it does not
 replace the metacode rules.
 
-The v2 conformance corpus is append-only from the released six-case v1
-denominator to fourteen fixed cases. It contains normal convergence,
+The v3 conformance contract is append-only from the immutable v0.1.2 v2
+denominator of fourteen fixed cases. Each case carries one authoritative
+`proof_choice` (`FOUNDATION`, `COHERENCE`, or `REGRESSION`) and one
+`indicator_class` (`DRIVER`, `OUTCOME`, or `GUARDRAIL`). Those labels are
+copied into the case IR, verifier observation, proof receipts, and release
+evidence. The fourteen-case corpus contains normal convergence,
 missing witness/lineage/toolchain/input identity (`UNKNOWN`), semantic and
 trace disagreement, forged digest, same-lineage replay, self-approval cycle,
 and frozen-bootstrap mismatch (`REFUTED`). `REFUTED > UNKNOWN > CLOSED` is
@@ -32,13 +36,16 @@ bytes from one lineage are not two witnesses.
 ## Run through CI
 
 GitHub Actions uses Go 1.27 and is the verification authority. It checks the
-independence import intersection, records per-witness wall time/RSS/build/test
-observations, runs Go tests, generates the fourteen cases into a
-caller-owned temporary directory, builds and runs every available generated Go
-artifact, compares runtime output, and uploads an evidence JSON artifact.
-The release workflow creates a draft, attaches its asset, publishes it, then
-fails closed unless the public release API reports immutable=true, the exact
-annotated tag object target, one asset, and the expected asset digest.
+independence import intersection, records per-witness and overall integer
+wall/build/test/RSS measurements, records cache hits/misses as integers or
+`null` with a six-field `UNKNOWN`, runs Go tests, generates the fourteen cases
+into a caller-owned temporary directory, builds and runs every available
+generated Go artifact, compares runtime output, and uploads an evidence JSON
+artifact. The release workflow selects the successful CI evidence for the
+exact merge commit, creates a draft with both source and evidence-dossier
+assets, publishes it, then fails closed unless the public release API reports
+immutable=true, the exact annotated tag object target, both expected assets,
+and both expected digests.
 
 The local development contract intentionally does not require local
 test/build/vet/gofmt/actionlint/bash validation or conformance runs. Generated output never enters the repository.
