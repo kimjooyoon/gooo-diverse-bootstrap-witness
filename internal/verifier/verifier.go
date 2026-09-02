@@ -43,13 +43,13 @@ func LoadMeta(path string) (wire.Meta, []byte, error) {
 }
 
 func ValidateMeta(meta wire.Meta) error {
-	if meta.Schema != "gooo.diverse-bootstrap-witness/v2" || meta.Authority != "metacode" || meta.ContractID != "gooo-diverse-bootstrap-witness/v2" {
+	if meta.Schema != "gooo.diverse-bootstrap-witness/v3" || meta.Authority != "metacode" || meta.ContractID != "gooo-diverse-bootstrap-witness/v3" {
 		return errors.New("metacode schema, authority, or contract_id is invalid")
 	}
-	if meta.ContractEvolution.PreviousSchema != "gooo.diverse-bootstrap-witness/v1" || meta.ContractEvolution.PreviousContractID != "gooo-diverse-bootstrap-witness/v1" || meta.ContractEvolution.PreviousDenominator != 6 || meta.ContractEvolution.CurrentDenominator != 14 || !meta.ContractEvolution.AppendOnly || len(meta.ContractEvolution.AddedFixedCaseIDs) != 8 || len(meta.ContractEvolution.RetiredFixedCaseIDs) != 0 {
-		return errors.New("contract evolution must append eight cases to the released six-case denominator")
+	if meta.ContractEvolution.PreviousSchema != "gooo.diverse-bootstrap-witness/v2" || meta.ContractEvolution.PreviousContractID != "gooo-diverse-bootstrap-witness/v2" || meta.ContractEvolution.PreviousDenominator != 14 || meta.ContractEvolution.CurrentDenominator != 14 || !meta.ContractEvolution.AppendOnly || len(meta.ContractEvolution.AddedFixedCaseIDs) != 0 || len(meta.ContractEvolution.RetiredFixedCaseIDs) != 0 {
+		return errors.New("contract evolution must append case evidence fields without changing the fourteen-case denominator")
 	}
-	if meta.Language.SourceExtension != ".gooo" || meta.Semantic.IRSchema == "" {
+	if meta.Language.SourceExtension != ".gooo" || meta.Semantic.IRSchema != "gooo.semantic-ir/v2" || !sameStrings(meta.Semantic.Fields, []string{"schema", "program", "case_id", "proof_choice", "indicator_class", "bindings", "emissions", "effects", "diagnostics"}) {
 		return errors.New("metacode language or semantic schema is invalid")
 	}
 	for _, rule := range []string{"program", "binding", "emission", "effect"} {
@@ -84,6 +84,9 @@ func ValidateMeta(meta wire.Meta) error {
 			return fmt.Errorf("proof claim %d is incomplete", index+1)
 		}
 	}
+	if !sameStrings(meta.CaseEvidencePolicy.ProofChoices, []string{"FOUNDATION", "COHERENCE", "REGRESSION"}) || !sameStrings(meta.CaseEvidencePolicy.IndicatorClasses, []string{"DRIVER", "OUTCOME", "GUARDRAIL"}) || !sameStrings(meta.CaseEvidencePolicy.AuthorityFields, []string{"proof_choice", "indicator_class"}) || !sameStrings(meta.CaseEvidencePolicy.IRFields, []string{"case_id", "proof_choice", "indicator_class"}) || !sameStrings(meta.CaseEvidencePolicy.VerifierFields, []string{"case_id", "proof_choice", "indicator_class", "proof_receipts"}) || !sameStrings(meta.CaseEvidencePolicy.ReleaseFields, []string{"case_id", "proof_choice", "indicator_class", "actual_status", "identity", "runtime"}) {
+		return errors.New("case evidence policy must connect authority, IR, verifier, and release fields")
+	}
 	if !meta.CanonicalComparison.ArtifactCannotSubstitute || !meta.TerminalTracePolicy.ReasonDriftIsFailure {
 		return errors.New("metacode identity separation or trace policy is incomplete")
 	}
@@ -93,7 +96,7 @@ func ValidateMeta(meta wire.Meta) error {
 	if !sameStrings(meta.Resolution.UnknownFields, []string{"stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"}) {
 		return errors.New("metacode unknown field contract is incomplete")
 	}
-	if len(meta.Resolution.RefutedReasons) != 5 || !sameStrings(meta.MeasurementPolicy.WitnessRuntimeFields, []string{"wall_ms", "peak_rss_kib", "build_ms", "test_ms"}) || meta.MeasurementPolicy.ImprovementMissingStatus != statusUnknown || len(meta.MeasurementPolicy.ImprovementPairFields) != 6 || meta.MeasurementPolicy.ScoreAggregation != "forbidden" || meta.MeasurementPolicy.EstimatedRate != "forbidden" {
+	if len(meta.Resolution.RefutedReasons) != 5 || !sameStrings(meta.MeasurementPolicy.RuntimeFields, []string{"wall_ms", "peak_rss_kib", "build_ms", "test_ms", "cache_hits", "cache_misses"}) || !sameStrings(meta.MeasurementPolicy.WitnessRuntimeFields, []string{"wall_ms", "peak_rss_kib", "build_ms", "test_ms", "cache_hits", "cache_misses"}) || meta.MeasurementPolicy.ImprovementMissingStatus != statusUnknown || len(meta.MeasurementPolicy.ImprovementPairFields) != 6 || meta.MeasurementPolicy.ScoreAggregation != "forbidden" || meta.MeasurementPolicy.EstimatedRate != "forbidden" {
 		return errors.New("refutation, witness measurement, or improvement policy is incomplete")
 	}
 	if len(meta.FixedCases) != meta.ContractEvolution.CurrentDenominator {
@@ -116,12 +119,48 @@ func ValidateMeta(meta wire.Meta) error {
 		"same-lineage-replay":                 statusRefuted,
 		"frozen-bootstrap-mismatch":           statusRefuted,
 	}
+	expectedProof := map[string]string{
+		"independent-convergence":            "FOUNDATION",
+		"comment-only-canonical-convergence": "COHERENCE",
+		"injected-self-propagating-semantic": "REGRESSION",
+		"terminal-reason-drift":              "REGRESSION",
+		"missing-diverse-path":               "FOUNDATION",
+		"byte-identical-replay":              "COHERENCE",
+		"stage0-current-convergence":         "COHERENCE",
+		"missing-witness-identity":           "FOUNDATION",
+		"missing-input-identity":              "FOUNDATION",
+		"witness-disagreement":               "COHERENCE",
+		"self-approval-cycle":                "REGRESSION",
+		"forged-digest":                      "REGRESSION",
+		"same-lineage-replay":                "REGRESSION",
+		"frozen-bootstrap-mismatch":          "REGRESSION",
+	}
+	expectedIndicator := map[string]string{
+		"independent-convergence":            "DRIVER",
+		"comment-only-canonical-convergence": "OUTCOME",
+		"injected-self-propagating-semantic": "GUARDRAIL",
+		"terminal-reason-drift":              "OUTCOME",
+		"missing-diverse-path":               "GUARDRAIL",
+		"byte-identical-replay":              "OUTCOME",
+		"stage0-current-convergence":         "DRIVER",
+		"missing-witness-identity":           "DRIVER",
+		"missing-input-identity":             "DRIVER",
+		"witness-disagreement":               "OUTCOME",
+		"self-approval-cycle":                "GUARDRAIL",
+		"forged-digest":                      "GUARDRAIL",
+		"same-lineage-replay":                "GUARDRAIL",
+		"frozen-bootstrap-mismatch":          "GUARDRAIL",
+	}
 	for _, fixed := range meta.FixedCases {
 		if ids[fixed.ID] {
 			return fmt.Errorf("duplicate fixed case %q", fixed.ID)
 		}
 		ids[fixed.ID] = true
-		if expected[fixed.ID] != fixed.ExpectedStatus {
+		expectedStatus, knownCase := expected[fixed.ID]
+		if !knownCase {
+			return fmt.Errorf("unknown fixed case %q", fixed.ID)
+		}
+		if expectedStatus != fixed.ExpectedStatus {
 			return fmt.Errorf("fixed case %q has unexpected status %q", fixed.ID, fixed.ExpectedStatus)
 		}
 		if fixed.Source == "" || !strings.HasSuffix(fixed.Source, ".gooo") {
@@ -129,6 +168,9 @@ func ValidateMeta(meta wire.Meta) error {
 		}
 		if fixed.ScenarioClass == "" || fixed.IdentityMode == "" {
 			return fmt.Errorf("fixed case %q is missing scenario or identity mode", fixed.ID)
+		}
+		if fixed.ProofChoice != expectedProof[fixed.ID] || fixed.IndicatorClass != expectedIndicator[fixed.ID] {
+			return fmt.Errorf("fixed case %q has an undeclared proof choice or indicator class", fixed.ID)
 		}
 		if fixed.ExpectedStatus == statusUnknown {
 			if fixed.Unknown == nil || !unknownComplete(fixed.Unknown) {
@@ -141,8 +183,8 @@ func ValidateMeta(meta wire.Meta) error {
 			return fmt.Errorf("missing fixed case %q", id)
 		}
 	}
-	if !sameStrings(meta.ContractEvolution.AddedFixedCaseIDs, []string{"stage0-current-convergence", "missing-witness-identity", "missing-input-identity", "witness-disagreement", "self-approval-cycle", "forged-digest", "same-lineage-replay", "frozen-bootstrap-mismatch"}) {
-		return errors.New("contract evolution added case list is not append-only and ordered")
+	if len(meta.ContractEvolution.AddedFixedCaseIDs) != 0 {
+		return errors.New("contract evolution cannot add or retire fixed cases in the evidence-only patch")
 	}
 	if len(meta.OptionalInputs) != 1 || meta.OptionalInputs[0].Name != "gooo-two-generation-bootstrap" || meta.OptionalInputs[0].Tag != "v0.1.1" || meta.OptionalInputs[0].RequiredGate != 0 || meta.OptionalInputs[0].Digest == "" {
 		return errors.New("the prior bootstrap must remain one digest-pinned optional input with required_gate=0")
@@ -204,7 +246,7 @@ func RunConformance(metaPath, repoRoot, artifactDir, reportPath string) error {
 		return err
 	}
 	report := wire.ConformanceReport{
-		Schema:               "gooo.conformance/v2",
+		Schema:               "gooo.conformance/v3",
 		ContractVersion:      meta.Schema,
 		ContractDigest:       Digest(rawMeta),
 		KernelSourceDigest:   kernelDigest,
@@ -221,7 +263,7 @@ func RunConformance(metaPath, repoRoot, artifactDir, reportPath string) error {
 		if err != nil {
 			return fmt.Errorf("case %s: %w", fixed.ID, err)
 		}
-		observation.ProofReceipts = caseProofReceipts(meta, observation)
+		observation.ProofReceipts = caseProofReceipts(meta, observation, fixed)
 		report.Cases = append(report.Cases, observation)
 		if observation.ActualStatus != fixed.ExpectedStatus {
 			mismatchRefuted = mismatchRefuted || observation.ActualStatus == statusRefuted || fixed.ExpectedStatus == statusRefuted
@@ -260,9 +302,12 @@ func runCase(meta wire.Meta, repoRoot, artifactDir, contractDigest string, fixed
 	if err := os.MkdirAll(caseDir, 0o755); err != nil {
 		return wire.CaseObservation{}, err
 	}
-	pathAResult, err := patha.Generate(meta, source, "normal")
+	pathAResult, err := patha.GenerateCase(meta, source, "normal", fixed.ID, fixed.ProofChoice, fixed.IndicatorClass)
 	if err != nil {
 		return wire.CaseObservation{}, fmt.Errorf("path-a: %w", err)
+	}
+	if !caseIRMatches(pathAResult.IR, fixed) {
+		return wire.CaseObservation{}, errors.New("path-a IR lost the authoritative case evidence labels")
 	}
 	pathAObservation, err := savePath(caseDir, "path-a", pathAResult, Digest(source), contractDigest)
 	if err != nil {
@@ -272,6 +317,8 @@ func runCase(meta wire.Meta, repoRoot, artifactDir, contractDigest string, fixed
 		ID:             fixed.ID,
 		ExpectedStatus: fixed.ExpectedStatus,
 		SourceDigest:   Digest(source),
+		ProofChoice:    fixed.ProofChoice,
+		IndicatorClass: fixed.IndicatorClass,
 		PathA:          pathAObservation,
 		PathB:          wire.PathObservation{Available: fixed.PathBAvailable},
 		Identity: wire.IdentityIndicators{
@@ -284,7 +331,7 @@ func runCase(meta wire.Meta, repoRoot, artifactDir, contractDigest string, fixed
 	}
 	observation.Witnesses = append(observation.Witnesses, witnessObservation(meta.WitnessPlan.Stage0Reference, pathAObservation, Digest(source), ""))
 	if fixed.ReplayPathA {
-		replay, replayErr := patha.Generate(meta, source, "normal")
+		replay, replayErr := patha.GenerateCase(meta, source, "normal", fixed.ID, fixed.ProofChoice, fixed.IndicatorClass)
 		if replayErr != nil {
 			return wire.CaseObservation{}, fmt.Errorf("path-a replay: %w", replayErr)
 		}
@@ -311,9 +358,12 @@ func runCase(meta wire.Meta, repoRoot, artifactDir, contractDigest string, fixed
 		observation.Unknown = fixed.Unknown
 		return observation, nil
 	}
-	pathBResult, err := pathb.Generate(meta, source, fixed.PathBVariant)
+	pathBResult, err := pathb.GenerateCase(meta, source, fixed.PathBVariant, fixed.ID, fixed.ProofChoice, fixed.IndicatorClass)
 	if err != nil {
 		return wire.CaseObservation{}, fmt.Errorf("path-b: %w", err)
+	}
+	if !caseIRMatches(pathBResult.IR, fixed) {
+		return wire.CaseObservation{}, errors.New("path-b IR lost the authoritative case evidence labels")
 	}
 	pathBObservation, err := savePath(caseDir, "path-b", pathBResult, Digest(source), contractDigest)
 	if err != nil {
@@ -463,15 +513,31 @@ func BuildEvidence(metaPath, repoRoot, conformancePath, artifactDir, runtimeDir,
 	if err := json.Unmarshal(conformanceBytes, &conformance); err != nil {
 		return err
 	}
-	if conformance.Schema != "gooo.conformance/v2" || conformance.ContractVersion != meta.Schema || conformance.ContractDigest != Digest(rawMeta) || conformance.SuiteStatus != statusClosed || len(conformance.Cases) != len(meta.FixedCases) || conformance.Denominator.FixedCaseCount != len(meta.FixedCases) || !conformance.Denominator.AppendOnly || conformance.Bootstrap.KernelSourceDigest != meta.SemanticKernel.Source.Digest || conformance.Bootstrap.CanonicalInputDigest != meta.SemanticKernel.CanonicalInput.Digest || conformance.Bootstrap.RequiredIndependentCount != meta.WitnessPlan.RequiredIndependentCount {
+	if conformance.Schema != "gooo.conformance/v3" || conformance.ContractVersion != meta.Schema || conformance.ContractDigest != Digest(rawMeta) || conformance.SuiteStatus != statusClosed || len(conformance.Cases) != len(meta.FixedCases) || conformance.Denominator.FixedCaseCount != len(meta.FixedCases) || !conformance.Denominator.AppendOnly || conformance.Bootstrap.KernelSourceDigest != meta.SemanticKernel.Source.Digest || conformance.Bootstrap.CanonicalInputDigest != meta.SemanticKernel.CanonicalInput.Digest || conformance.Bootstrap.RequiredIndependentCount != meta.WitnessPlan.RequiredIndependentCount {
 		return errors.New("conformance report is not closed or has the wrong fixed-case count")
 	}
 	if _, _, err := verifyDeclaredIdentities(meta, repoRoot); err != nil {
 		return err
 	}
+	caseAuthority := make(map[string]wire.FixedCase, len(meta.FixedCases))
+	for _, fixed := range meta.FixedCases {
+		caseAuthority[fixed.ID] = fixed
+	}
 	for _, observation := range conformance.Cases {
 		if observation.ActualStatus != observation.ExpectedStatus {
 			return fmt.Errorf("conformance case %s does not match its declared status", observation.ID)
+		}
+		fixed, ok := caseAuthority[observation.ID]
+		if !ok || observation.ProofChoice != fixed.ProofChoice || observation.IndicatorClass != fixed.IndicatorClass {
+			return fmt.Errorf("conformance case %s is missing its authoritative proof choice or indicator class", observation.ID)
+		}
+		if len(observation.ProofReceipts) != len(meta.WitnessPlan.ProofClaims) {
+			return fmt.Errorf("conformance case %s has incomplete proof receipts", observation.ID)
+		}
+		for _, receipt := range observation.ProofReceipts {
+			if receipt.IndicatorClass != observation.IndicatorClass || receipt.ProofChoice != "FOUNDATION" && receipt.ProofChoice != "COHERENCE" && receipt.ProofChoice != "REGRESSION" {
+				return fmt.Errorf("conformance case %s proof receipt has the wrong indicator class", observation.ID)
+			}
 		}
 		if observation.ActualStatus == statusUnknown && (observation.Unknown == nil || !unknownComplete(observation.Unknown)) {
 			return fmt.Errorf("conformance case %s has incomplete UNKNOWN evidence", observation.ID)
@@ -534,7 +600,7 @@ func BuildEvidence(metaPath, repoRoot, conformancePath, artifactDir, runtimeDir,
 		return errors.New("generated artifacts, runtime output, and evidence must remain caller-owned and outside the repository")
 	}
 	evidence := wire.Evidence{
-		Schema:             "gooo.evidence/v2",
+		Schema:             "gooo.evidence/v3",
 		ContractVersion:    meta.Schema,
 		ContractDigest:     Digest(rawMeta),
 		SuiteStatus:        statusClosed,
@@ -561,27 +627,33 @@ func BuildEvidence(metaPath, repoRoot, conformancePath, artifactDir, runtimeDir,
 }
 
 func wireRuntimeMetrics(buildMetric, testMetric, conformanceMetric, generatedBuildMetric, generatedRunMetric string) (wire.RuntimeMetrics, error) {
-	build, err := parseMetric(buildMetric)
-	if err != nil {
-		return wire.RuntimeMetrics{}, err
+	build := parseMetric(buildMetric)
+	test := parseMetric(testMetric)
+	conformance := parseMetric(conformanceMetric)
+	generatedBuild := parseMetric(generatedBuildMetric)
+	generatedRun := parseMetric(generatedRunMetric)
+	result := wire.RuntimeMetrics{
+		Build:       build,
+		Test:        test,
+		Conformance: conformance,
+		GeneratedBuild: generatedBuild,
+		GeneratedRun: generatedRun,
+		CacheStatus:  statusUnknown,
+		CacheUnknown: unknownMetric("cache-observation", "Actions cache hit/miss counters are not exposed by this workflow", "unobserved-cache-counters"),
+		Status:       statusClosed,
 	}
-	test, err := parseMetric(testMetric)
-	if err != nil {
-		return wire.RuntimeMetrics{}, err
+	if !runtimeMetricClosed(build) || !runtimeMetricClosed(test) || !runtimeMetricClosed(conformance) || !runtimeMetricClosed(generatedBuild) || !runtimeMetricClosed(generatedRun) {
+		result.Status = statusUnknown
+		result.Unknown = unknownMetric("runtime-summary", "one or more declared CI stage metrics are unavailable or malformed", "incomplete-runtime-metrics")
+		return result, nil
 	}
-	conformance, err := parseMetric(conformanceMetric)
-	if err != nil {
-		return wire.RuntimeMetrics{}, err
-	}
-	generatedBuild, err := parseMetric(generatedBuildMetric)
-	if err != nil {
-		return wire.RuntimeMetrics{}, err
-	}
-	generatedRun, err := parseMetric(generatedRunMetric)
-	if err != nil {
-		return wire.RuntimeMetrics{}, err
-	}
-	return wire.RuntimeMetrics{Build: build, Test: test, Conformance: conformance, GeneratedBuild: generatedBuild, GeneratedRun: generatedRun}, nil
+	wall := *build.WallMS + *test.WallMS + *conformance.WallMS + *generatedBuild.WallMS + *generatedRun.WallMS
+	peak := maxInt64(*build.PeakRSSKiB, *test.PeakRSSKiB, *conformance.PeakRSSKiB, *generatedBuild.PeakRSSKiB, *generatedRun.PeakRSSKiB)
+	result.WallMS = int64Pointer(wall)
+	result.PeakRSSKiB = int64Pointer(peak)
+	result.BuildMS = int64Pointer(*build.WallMS)
+	result.TestMS = int64Pointer(*test.WallMS)
+	return result, nil
 }
 
 func measureInventory(root string, exclusions []string) (wire.InventoryMetrics, error) {
@@ -658,30 +730,28 @@ func measureFiles(root string) (wire.GeneratedMetrics, error) {
 	return metrics, err
 }
 
-func parseMetric(path string) (wire.RuntimeMetric, error) {
+func parseMetric(path string) wire.RuntimeMetric {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return wire.RuntimeMetric{}, err
+		return wire.RuntimeMetric{Status: statusUnknown, Unknown: unknownMetric("runtime-metric", "runtime metric file is unavailable: "+path, "missing-runtime-metric")}
 	}
 	fields := strings.Fields(string(content))
 	if len(fields) != 2 {
-		return wire.RuntimeMetric{}, fmt.Errorf("metric %s must contain elapsed seconds and peak RSS KiB", path)
+		return wire.RuntimeMetric{Status: statusUnknown, Unknown: unknownMetric("runtime-metric", "metric must contain elapsed seconds and peak RSS KiB: "+path, "malformed-runtime-metric")}
 	}
 	seconds, err := strconv.ParseFloat(fields[0], 64)
 	if err != nil {
-		return wire.RuntimeMetric{}, err
+		return wire.RuntimeMetric{Status: statusUnknown, Unknown: unknownMetric("runtime-metric", "elapsed seconds are not numeric: "+path, "malformed-runtime-metric")}
 	}
 	rss, err := strconv.ParseInt(fields[1], 10, 64)
 	if err != nil {
-		return wire.RuntimeMetric{}, err
+		return wire.RuntimeMetric{Status: statusUnknown, Unknown: unknownMetric("runtime-metric", "peak RSS is not an integer: "+path, "malformed-runtime-metric")}
 	}
-	return wire.RuntimeMetric{WallMS: int64(math.Round(seconds * 1000)), PeakRSSKiB: rss}, nil
+	wall := int64(math.Round(seconds * 1000))
+	return wire.RuntimeMetric{WallMS: int64Pointer(wall), PeakRSSKiB: int64Pointer(rss), Status: statusClosed}
 }
 
 func parseWitnessRuntimeMetrics(root string, meta wire.Meta) ([]wire.WitnessRuntimeObservation, error) {
-	if root == "" {
-		return nil, errors.New("witness metrics directory is required")
-	}
 	items := []struct {
 		identity wire.WitnessIdentity
 		name     string
@@ -692,21 +762,51 @@ func parseWitnessRuntimeMetrics(root string, meta wire.Meta) ([]wire.WitnessRunt
 	}
 	result := make([]wire.WitnessRuntimeObservation, 0, len(items))
 	for _, item := range items {
-		observe, err := parseMetric(filepath.Join(root, item.name+".observe.metric"))
-		if err != nil {
-			return nil, err
+		observe := parseMetric(filepath.Join(root, item.name+".observe.metric"))
+		build := parseMetric(filepath.Join(root, item.name+".build.metric"))
+		test := parseMetric(filepath.Join(root, item.name+".test.metric"))
+		status := statusClosed
+		var unknown *wire.UnknownRecord
+		for _, metric := range []wire.RuntimeMetric{observe, build, test} {
+			if !runtimeMetricClosed(metric) {
+				status = statusUnknown
+				if unknown == nil {
+					unknown = metric.Unknown
+				}
+			}
 		}
-		build, err := parseMetric(filepath.Join(root, item.name+".build.metric"))
-		if err != nil {
-			return nil, err
-		}
-		test, err := parseMetric(filepath.Join(root, item.name+".test.metric"))
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, wire.WitnessRuntimeObservation{WitnessID: item.identity.ID, Role: item.role, ScenarioID: meta.SemanticKernel.CanonicalInput.ID, InputDigest: meta.SemanticKernel.CanonicalInput.Digest, ToolchainID: item.identity.ToolchainID, WallMS: observe.WallMS, PeakRSSKiB: observe.PeakRSSKiB, BuildMS: build.WallMS, TestMS: test.WallMS})
+		result = append(result, wire.WitnessRuntimeObservation{
+			WitnessID: item.identity.ID, Role: item.role, ScenarioID: meta.SemanticKernel.CanonicalInput.ID,
+			InputDigest: meta.SemanticKernel.CanonicalInput.Digest, ToolchainID: item.identity.ToolchainID,
+			WallMS: observe.WallMS, PeakRSSKiB: observe.PeakRSSKiB, BuildMS: build.WallMS, TestMS: test.WallMS,
+			CacheStatus: statusUnknown,
+			CacheUnknown: unknownMetric("witness-cache-observation", "Actions cache hit/miss counters are not exposed by this workflow", "unobserved-cache-counters"),
+			Status: status, Unknown: unknown,
+		})
 	}
 	return result, nil
+}
+
+func runtimeMetricClosed(metric wire.RuntimeMetric) bool {
+	return metric.Status == statusClosed && metric.WallMS != nil && metric.PeakRSSKiB != nil
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
+}
+
+func maxInt64(values ...int64) int64 {
+	maximum := int64(0)
+	for _, value := range values {
+		if value > maximum {
+			maximum = value
+		}
+	}
+	return maximum
+}
+
+func unknownMetric(step, reason, unknownClass string) *wire.UnknownRecord {
+	return &wire.UnknownRecord{Stage: "measurement", Step: step, Reason: reason, UnknownClass: unknownClass, NextOperation: "rerun-actions-with-the-required-metric-observer", BlockedBy: "required-runtime-observation-unavailable"}
 }
 
 func improvementUnknown() wire.ImprovementObservation {
@@ -898,6 +998,10 @@ func observationDigest(semantic, decision, provenance string) string {
 	return Digest(raw)
 }
 
+func caseIRMatches(ir wire.SemanticIR, fixed wire.FixedCase) bool {
+	return ir.CaseID == fixed.ID && ir.ProofChoice == fixed.ProofChoice && ir.IndicatorClass == fixed.IndicatorClass
+}
+
 func denominatorFor(meta wire.Meta) wire.Denominator {
 	counts := map[string]int{}
 	ids := make([]string, 0, len(meta.FixedCases))
@@ -905,14 +1009,14 @@ func denominatorFor(meta wire.Meta) wire.Denominator {
 		counts[fixed.ExpectedStatus]++
 		ids = append(ids, fixed.ID)
 	}
-	return wire.Denominator{ID: meta.ContractID + "/denominator", Version: "v2", FixedCaseCount: len(meta.FixedCases), PreviousCaseCount: meta.ContractEvolution.PreviousDenominator, AddedCaseCount: len(meta.ContractEvolution.AddedFixedCaseIDs), RetiredCaseCount: len(meta.ContractEvolution.RetiredFixedCaseIDs), StatusCounts: counts, CaseIDs: ids, AppendOnly: meta.ContractEvolution.AppendOnly}
+	return wire.Denominator{ID: meta.ContractID + "/denominator", Version: "v3", FixedCaseCount: len(meta.FixedCases), PreviousCaseCount: meta.ContractEvolution.PreviousDenominator, AddedCaseCount: len(meta.ContractEvolution.AddedFixedCaseIDs), RetiredCaseCount: len(meta.ContractEvolution.RetiredFixedCaseIDs), StatusCounts: counts, CaseIDs: ids, AppendOnly: meta.ContractEvolution.AppendOnly}
 }
 
 func bootstrapObservation(meta wire.Meta, kernelDigest, inputDigest string) wire.BootstrapObservation {
 	return wire.BootstrapObservation{RequiredIndependentCount: meta.WitnessPlan.RequiredIndependentCount, KernelSourceDigest: kernelDigest, CanonicalInputDigest: inputDigest, Stage0Reference: meta.WitnessPlan.Stage0Reference, GeneratedCurrent: meta.WitnessPlan.GeneratedCurrent, OptionalDiverse: meta.WitnessPlan.OptionalDiverse, Trilemma: meta.WitnessPlan.Trilemma}
 }
 
-func caseProofReceipts(meta wire.Meta, observation wire.CaseObservation) []wire.ProofReceipt {
+func caseProofReceipts(meta wire.Meta, observation wire.CaseObservation, fixed wire.FixedCase) []wire.ProofReceipt {
 	result := make([]wire.ProofReceipt, 0, len(meta.WitnessPlan.ProofClaims))
 	for _, claim := range meta.WitnessPlan.ProofClaims {
 		status := statusClosed
@@ -923,12 +1027,14 @@ func caseProofReceipts(meta wire.Meta, observation wire.CaseObservation) []wire.
 			status = statusClosed
 		}
 		value := struct {
-			CaseID string `json:"case_id"`
-			Claim  string `json:"claim"`
-			Status string `json:"status"`
-		}{CaseID: observation.ID, Claim: claim.ID, Status: status}
+			CaseID          string `json:"case_id"`
+			Claim           string `json:"claim"`
+			ProofChoice     string `json:"proof_choice"`
+			IndicatorClass  string `json:"indicator_class"`
+			Status          string `json:"status"`
+		}{CaseID: observation.ID, Claim: claim.ID, ProofChoice: claim.ProofChoice, IndicatorClass: fixed.IndicatorClass, Status: status}
 		raw, _ := canonical(value)
-		result = append(result, wire.ProofReceipt{ClaimID: claim.ID, Claim: claim.Claim, ProofChoice: claim.ProofChoice, Status: status, IndependenceBasis: claim.IndependenceBasis, EvidenceDigest: Digest(raw)})
+		result = append(result, wire.ProofReceipt{ClaimID: claim.ID, Claim: claim.Claim, ProofChoice: claim.ProofChoice, IndicatorClass: fixed.IndicatorClass, Status: status, IndependenceBasis: claim.IndependenceBasis, EvidenceDigest: Digest(raw)})
 	}
 	return result
 }

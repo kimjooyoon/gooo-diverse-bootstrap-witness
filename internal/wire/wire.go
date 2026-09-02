@@ -11,6 +11,7 @@ type Meta struct {
 	Language            LanguageSpec        `json:"language"`
 	Semantic            SemanticSpec        `json:"semantic"`
 	SemanticKernel      SemanticKernel      `json:"semantic_kernel"`
+	CaseEvidencePolicy  CaseEvidencePolicy  `json:"case_evidence_policy"`
 	GenerationGraph     []GraphNode         `json:"generation_graph"`
 	Independence        IndependenceSpec    `json:"independence_predicate"`
 	WitnessPlan         WitnessPlan         `json:"witness_plan"`
@@ -142,6 +143,15 @@ type ProofClaim struct {
 	RequiredEvidence  []string `json:"required_evidence"`
 }
 
+type CaseEvidencePolicy struct {
+	ProofChoices     []string `json:"proof_choices"`
+	IndicatorClasses []string `json:"indicator_classes"`
+	AuthorityFields  []string `json:"authority_fields"`
+	IRFields         []string `json:"ir_fields"`
+	VerifierFields   []string `json:"verifier_fields"`
+	ReleaseFields    []string `json:"release_fields"`
+}
+
 type TrilemmaNote struct {
 	Acknowledged bool     `json:"acknowledged"`
 	Foundation  string   `json:"foundation"`
@@ -192,6 +202,8 @@ type FixedCase struct {
 	Source            string         `json:"source"`
 	ExpectedStatus    string         `json:"expected_status"`
 	ScenarioClass     string         `json:"scenario_class"`
+	ProofChoice       string         `json:"proof_choice"`
+	IndicatorClass    string         `json:"indicator_class"`
 	PathBAvailable    bool           `json:"path_b_available"`
 	PathBVariant      string         `json:"path_b_variant"`
 	IdentityMode      string         `json:"identity_mode"`
@@ -226,6 +238,9 @@ type Diagnostic struct {
 type SemanticIR struct {
 	Schema      string       `json:"schema"`
 	Program     string       `json:"program"`
+	CaseID      string       `json:"case_id,omitempty"`
+	ProofChoice string       `json:"proof_choice,omitempty"`
+	IndicatorClass string    `json:"indicator_class,omitempty"`
 	Bindings    []Binding    `json:"bindings"`
 	Emissions   []string     `json:"emissions"`
 	Effects     []Binding    `json:"effects"`
@@ -292,6 +307,7 @@ type ProofReceipt struct {
 	ClaimID           string `json:"claim_id"`
 	Claim             string `json:"claim"`
 	ProofChoice       string `json:"proof_choice"`
+	IndicatorClass    string `json:"indicator_class,omitempty"`
 	Status            string `json:"status"`
 	IndependenceBasis string `json:"independence_basis"`
 	EvidenceDigest    string `json:"evidence_digest"`
@@ -324,6 +340,8 @@ type CaseObservation struct {
 	ExpectedStatus string               `json:"expected_status"`
 	ActualStatus   string               `json:"actual_status"`
 	SourceDigest   string               `json:"source_digest"`
+	ProofChoice    string               `json:"proof_choice"`
+	IndicatorClass string               `json:"indicator_class"`
 	PathA          PathObservation      `json:"path_a"`
 	PathB          PathObservation      `json:"path_b"`
 	Witnesses      []WitnessObservation `json:"witnesses,omitempty"`
@@ -367,8 +385,10 @@ type InventoryMetrics struct {
 }
 
 type RuntimeMetric struct {
-	WallMS     int64 `json:"wall_ms"`
-	PeakRSSKiB int64 `json:"peak_rss_kib"`
+	WallMS     *int64         `json:"wall_ms"`
+	PeakRSSKiB *int64         `json:"peak_rss_kib"`
+	Status     string         `json:"status"`
+	Unknown    *UnknownRecord `json:"unknown,omitempty"`
 }
 
 type RuntimeMetrics struct {
@@ -377,6 +397,16 @@ type RuntimeMetrics struct {
 	Conformance    RuntimeMetric `json:"conformance"`
 	GeneratedBuild RuntimeMetric `json:"generated_build"`
 	GeneratedRun   RuntimeMetric `json:"generated_run"`
+	WallMS         *int64         `json:"wall_ms"`
+	PeakRSSKiB     *int64         `json:"peak_rss_kib"`
+	BuildMS        *int64         `json:"build_ms"`
+	TestMS         *int64         `json:"test_ms"`
+	CacheHits      *int64         `json:"cache_hits"`
+	CacheMisses    *int64         `json:"cache_misses"`
+	CacheStatus    string         `json:"cache_status"`
+	CacheUnknown   *UnknownRecord `json:"cache_unknown,omitempty"`
+	Status         string         `json:"status"`
+	Unknown        *UnknownRecord `json:"unknown,omitempty"`
 }
 
 type TestMetrics struct {
@@ -416,10 +446,16 @@ type WitnessRuntimeObservation struct {
 	ScenarioID  string `json:"scenario_id"`
 	InputDigest string `json:"input_digest"`
 	ToolchainID string `json:"toolchain_id"`
-	WallMS      int64  `json:"wall_ms"`
-	PeakRSSKiB  int64  `json:"peak_rss_kib"`
-	BuildMS     int64  `json:"build_ms"`
-	TestMS      int64  `json:"test_ms"`
+	WallMS      *int64         `json:"wall_ms"`
+	PeakRSSKiB  *int64         `json:"peak_rss_kib"`
+	BuildMS     *int64         `json:"build_ms"`
+	TestMS      *int64         `json:"test_ms"`
+	CacheHits   *int64         `json:"cache_hits"`
+	CacheMisses *int64         `json:"cache_misses"`
+	CacheStatus string         `json:"cache_status"`
+	CacheUnknown *UnknownRecord `json:"cache_unknown,omitempty"`
+	Status      string         `json:"status"`
+	Unknown     *UnknownRecord `json:"unknown,omitempty"`
 }
 
 type ImprovementObservation struct {

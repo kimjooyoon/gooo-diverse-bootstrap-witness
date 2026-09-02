@@ -21,5 +21,9 @@ unknown_class=external-observability
 It is not interpreted as enabled=false. The release workflow uses the ordinary
 public release API after publication and fails closed unless the new release
 reports immutable=true, its tag ref resolves to the exact annotated tag object
-and commit, its asset count is exactly one, and the API asset digest matches the
-locally computed digest.
+and commit, its asset set is exactly the source archive plus the CI evidence
+dossier, and both API asset digests match the locally computed digests. The
+evidence dossier is selected from a successful `diverse-bootstrap-witness`
+push run for the exact annotated-tag commit; it contains the v3
+evidence/conformance reports, raw metric files, and the run/commit binding
+manifest.

@@ -32,11 +32,21 @@ type sourceEffect struct {
 }
 
 func Generate(meta wire.Meta, source []byte, variant string) (wire.GeneratedResult, error) {
+	return generate(meta, source, variant, "", "", "")
+}
+
+// GenerateCase carries the authoritative case labels into the IR that is
+// emitted for the verifier and retained in release evidence.
+func GenerateCase(meta wire.Meta, source []byte, variant, caseID, proofChoice, indicatorClass string) (wire.GeneratedResult, error) {
+	return generate(meta, source, variant, caseID, proofChoice, indicatorClass)
+}
+
+func generate(meta wire.Meta, source []byte, variant, caseID, proofChoice, indicatorClass string) (wire.GeneratedResult, error) {
 	parsed, err := parse(meta, source)
 	if err != nil {
 		return wire.GeneratedResult{}, err
 	}
-	lowered, err := lower(meta, parsed)
+	lowered, err := lower(meta, parsed, caseID, proofChoice, indicatorClass)
 	if err != nil {
 		return wire.GeneratedResult{}, err
 	}
@@ -103,10 +113,10 @@ func parse(meta wire.Meta, source []byte) (sourceProgram, error) {
 	return program, nil
 }
 
-func lower(meta wire.Meta, parsed sourceProgram) (wire.SemanticIR, error) {
+func lower(meta wire.Meta, parsed sourceProgram, caseID, proofChoice, indicatorClass string) (wire.SemanticIR, error) {
 	bindings := append([]sourceBinding(nil), parsed.bindings...)
 	sort.SliceStable(bindings, func(i, j int) bool { return bindings[i].name < bindings[j].name })
-	ir := wire.SemanticIR{Schema: meta.Semantic.IRSchema, Program: parsed.name}
+	ir := wire.SemanticIR{Schema: meta.Semantic.IRSchema, Program: parsed.name, CaseID: caseID, ProofChoice: proofChoice, IndicatorClass: indicatorClass}
 	for _, binding := range bindings {
 		ir.Bindings = append(ir.Bindings, wire.Binding{Name: binding.name, Value: binding.value})
 	}

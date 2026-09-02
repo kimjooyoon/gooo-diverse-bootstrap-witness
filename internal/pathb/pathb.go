@@ -28,6 +28,16 @@ type programModel struct {
 }
 
 func Generate(meta wire.Meta, source []byte, variant string) (wire.GeneratedResult, error) {
+	return generate(meta, source, variant, "", "", "")
+}
+
+// GenerateCase carries the authoritative case labels into the IR that is
+// emitted for the verifier and retained in release evidence.
+func GenerateCase(meta wire.Meta, source []byte, variant, caseID, proofChoice, indicatorClass string) (wire.GeneratedResult, error) {
+	return generate(meta, source, variant, caseID, proofChoice, indicatorClass)
+}
+
+func generate(meta wire.Meta, source []byte, variant, caseID, proofChoice, indicatorClass string) (wire.GeneratedResult, error) {
 	statements, err := readStatements(meta, source)
 	if err != nil {
 		return wire.GeneratedResult{}, err
@@ -36,7 +46,7 @@ func Generate(meta wire.Meta, source []byte, variant string) (wire.GeneratedResu
 	if err != nil {
 		return wire.GeneratedResult{}, err
 	}
-	ir := makeIR(meta, model, variant)
+	ir := makeIR(meta, model, variant, caseID, proofChoice, indicatorClass)
 	trace := runExecutor(meta, ir, variant)
 	artifact := makeArtifact(ir, trace)
 	return wire.GeneratedResult{IR: ir, ArtifactBytes: artifact, Trace: trace}, nil
@@ -117,14 +127,14 @@ func assemble(meta wire.Meta, statements []statement) (programModel, error) {
 	return model, nil
 }
 
-func makeIR(meta wire.Meta, model programModel, variant string) wire.SemanticIR {
+func makeIR(meta wire.Meta, model programModel, variant, caseID, proofChoice, indicatorClass string) wire.SemanticIR {
 	mutation := findMutation(meta, variant)
 	keys := make([]string, 0, len(model.declarations))
 	for key := range model.declarations {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
-	ir := wire.SemanticIR{Schema: meta.Semantic.IRSchema, Program: model.name}
+	ir := wire.SemanticIR{Schema: meta.Semantic.IRSchema, Program: model.name, CaseID: caseID, ProofChoice: proofChoice, IndicatorClass: indicatorClass}
 	for _, key := range keys {
 		value := model.declarations[key]
 		if mutation.Effect == "replace-binding-value" && key == mutation.Target {

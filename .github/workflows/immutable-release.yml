@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing annotated tag to publish, for example v0.1.1
+        description: Existing annotated tag to publish, for example v0.1.3
         required: true
         type: string
       title:
@@ -13,6 +13,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -27,54 +28,195 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
+          git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
           test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
           test -n "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
-      - name: Build release asset
-        id: asset
+      - name: Locate exact merge-commit CI evidence
+        id: ci-evidence
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          asset="$RUNNER_TEMP/${RELEASE_TAG}-source.tar.gz"
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness-release"
+          mkdir -p "$work/ci-evidence"
+          tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$tag_commit&per_page=20" > "$work/ci-runs.json"
+          read -r ci_run_id ci_run_url < <(python3 - "$work/ci-runs.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              runs = json.load(handle)["workflow_runs"]
+          for run in runs:
+              if (run.get("name") == "diverse-bootstrap-witness" and
+                      run.get("event") == "push" and
+                      run.get("head_branch") == "main" and
+                      run.get("status") == "completed" and
+                      run.get("conclusion") == "success"):
+                  print(run["id"], run["html_url"])
+                  break
+          else:
+              raise SystemExit("no successful main CI run exists for the annotated tag commit")
+          PY
+          )
+          gh run download "$ci_run_id" --name gooo-diverse-bootstrap-witness-evidence --dir "$work/ci-evidence"
+          test -s "$work/ci-evidence/evidence.json"
+          python3 - "$work/ci-evidence/evidence.json" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              evidence = json.load(handle)
+          if evidence.get("schema") != "gooo.evidence/v3" or evidence.get("suite_status") != "CLOSED":
+              raise SystemExit("release evidence is not a closed v3 dossier")
+          runtime = evidence.get("runtime", {})
+          for field in ("wall_ms", "peak_rss_kib", "build_ms", "test_ms"):
+              if not isinstance(runtime.get(field), int) or isinstance(runtime.get(field), bool):
+                  raise SystemExit("overall runtime field is not an integer: " + field)
+          if runtime.get("cache_hits") is not None or runtime.get("cache_misses") is not None or runtime.get("cache_status") != "UNKNOWN":
+              raise SystemExit("cache observation must be explicit null plus UNKNOWN")
+          unknown = runtime.get("cache_unknown", {})
+          if set(("stage", "step", "reason", "unknown_class", "next_operation", "blocked_by")) - set(unknown):
+              raise SystemExit("cache UNKNOWN record is incomplete")
+          cases = evidence.get("conformance", {}).get("cases", [])
+          if len(cases) != 14:
+              raise SystemExit("release evidence does not contain all fourteen cases")
+          for case in cases:
+              if case.get("proof_choice") not in ("FOUNDATION", "COHERENCE", "REGRESSION"):
+                  raise SystemExit("case proof choice is incomplete: " + str(case.get("id")))
+              if case.get("indicator_class") not in ("DRIVER", "OUTCOME", "GUARDRAIL"):
+                  raise SystemExit("case indicator class is incomplete: " + str(case.get("id")))
+          for witness in evidence.get("witness_runtime", []):
+              for field in ("wall_ms", "peak_rss_kib", "build_ms", "test_ms"):
+                  if not isinstance(witness.get(field), int) or isinstance(witness.get(field), bool):
+                      raise SystemExit("witness runtime field is not an integer: " + field)
+              if witness.get("cache_hits") is not None or witness.get("cache_misses") is not None or witness.get("cache_status") != "UNKNOWN":
+                  raise SystemExit("witness cache observation must be explicit null plus UNKNOWN")
+              unknown = witness.get("cache_unknown", {})
+              if set(("stage", "step", "reason", "unknown_class", "next_operation", "blocked_by")) - set(unknown):
+                  raise SystemExit("witness cache UNKNOWN record is incomplete")
+          for case in cases:
+              if case.get("actual_status") == "UNKNOWN":
+                  unknown = case.get("unknown", {})
+                  if set(("stage", "step", "reason", "unknown_class", "next_operation", "blocked_by")) - set(unknown):
+                      raise SystemExit("case UNKNOWN record is incomplete: " + case["id"])
+          if any(value != 0 for value in evidence.get("authority", {}).values()):
+              raise SystemExit("release evidence reports generated authority")
+          PY
+          echo "run_id=$ci_run_id" >> "$GITHUB_OUTPUT"
+          echo "run_url=$ci_run_url" >> "$GITHUB_OUTPUT"
+      - name: Build source and evidence-dossier assets
+        id: assets
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          CI_RUN_ID: ${{ steps.ci-evidence.outputs.run_id }}
+          CI_RUN_URL: ${{ steps.ci-evidence.outputs.run_url }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness-release"
+          asset="$work/${RELEASE_TAG}-source.tar.gz"
           git archive --format=tar.gz --prefix="${RELEASE_TAG}/" "refs/tags/$RELEASE_TAG" > "$asset"
-          echo "path=$asset" >> "$GITHUB_OUTPUT"
-          echo "name=$(basename "$asset")" >> "$GITHUB_OUTPUT"
-          echo "digest=$(sha256sum "$asset" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-      - name: Create draft release with asset
+          dossier="$work/dossier"
+          mkdir -p "$dossier/metrics/witness"
+          cp "$work/ci-evidence/evidence.json" "$dossier/evidence.json"
+          cp "$work/ci-evidence/conformance.json" "$dossier/conformance.json"
+          cp "$work/ci-evidence/test.json" "$dossier/test.json"
+          cp "$work/ci-evidence"/*.metric "$dossier/metrics/"
+          cp "$work/ci-evidence/witness-metrics"/*.metric "$dossier/metrics/witness/"
+          python3 - "$dossier/release-evidence-manifest.json" "$dossier/evidence.json" <<'PY'
+          import hashlib
+          import json
+          import os
+          import subprocess
+          import sys
+
+          manifest_path, evidence_path = sys.argv[1:]
+          with open(evidence_path, "rb") as handle:
+              evidence_digest = "sha256:" + hashlib.sha256(handle.read()).hexdigest()
+          manifest = {
+              "schema": "gooo.release-evidence/v1",
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "tag": os.environ["RELEASE_TAG"],
+              "commit": subprocess.run(["git", "rev-parse", "refs/tags/" + os.environ["RELEASE_TAG"] + "^{commit}"], check=True, capture_output=True, text=True).stdout.strip(),
+              "ci_run_id": int(os.environ["CI_RUN_ID"]),
+              "ci_run_url": os.environ["CI_RUN_URL"],
+              "evidence_file": "evidence.json",
+              "evidence_digest": evidence_digest,
+              "metric_files": [
+                  "metrics/build.metric", "metrics/test.metric", "metrics/conformance.metric",
+                  "metrics/generated-build.metric", "metrics/generated-run.metric",
+                  "metrics/witness/path-a.observe.metric", "metrics/witness/path-a.build.metric",
+                  "metrics/witness/path-a.test.metric", "metrics/witness/path-b.observe.metric",
+                  "metrics/witness/path-b.build.metric", "metrics/witness/path-b.test.metric"
+              ]
+          }
+          with open(manifest_path, "w", encoding="utf-8") as handle:
+              json.dump(manifest, handle, indent=2)
+              handle.write("\n")
+          PY
+          evidence_asset="$work/${RELEASE_TAG}-evidence.tar.gz"
+          tar -czf "$evidence_asset" -C "$dossier" evidence.json conformance.json test.json release-evidence-manifest.json metrics
+          echo "source_path=$asset" >> "$GITHUB_OUTPUT"
+          echo "source_name=$(basename "$asset")" >> "$GITHUB_OUTPUT"
+          echo "source_digest=$(sha256sum "$asset" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "evidence_path=$evidence_asset" >> "$GITHUB_OUTPUT"
+          echo "evidence_name=$(basename "$evidence_asset")" >> "$GITHUB_OUTPUT"
+          echo "evidence_digest=$(sha256sum "$evidence_asset" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Create draft release with source and evidence assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_TITLE: ${{ inputs.title }}
-          ASSET_PATH: ${{ steps.asset.outputs.path }}
+          SOURCE_ASSET_PATH: ${{ steps.assets.outputs.source_path }}
+          EVIDENCE_ASSET_PATH: ${{ steps.assets.outputs.evidence_path }}
         run: |
-          gh release create "$RELEASE_TAG" "$ASSET_PATH" \
+          gh release create "$RELEASE_TAG" "$SOURCE_ASSET_PATH" "$EVIDENCE_ASSET_PATH" \
             --draft \
             --title "$RELEASE_TITLE" \
-            --notes 'Published by the immutable release workflow after the merge and CI gates.'
+            --notes 'Published by the immutable release workflow after the merge and CI gates. The evidence asset is the exact CI runtime dossier for the tagged merge commit.'
       - name: Publish draft release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: gh release edit "$RELEASE_TAG" --draft=false
       - name: Verify immutable release, exact tag object, and asset digest
+        id: verify
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
-          ASSET_NAME: ${{ steps.asset.outputs.name }}
-          ASSET_DIGEST: ${{ steps.asset.outputs.digest }}
+          SOURCE_ASSET_NAME: ${{ steps.assets.outputs.source_name }}
+          SOURCE_ASSET_DIGEST: ${{ steps.assets.outputs.source_digest }}
+          EVIDENCE_ASSET_NAME: ${{ steps.assets.outputs.evidence_name }}
+          EVIDENCE_ASSET_DIGEST: ${{ steps.assets.outputs.evidence_digest }}
         run: |
           set -euo pipefail
-          release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
-          test "$(jq -r '.draft' <<<"$release")" = false
-          test "$(jq -r '.prerelease' <<<"$release")" = false
-          test "$(jq -r '.immutable // "missing"' <<<"$release")" = true
+          work="$RUNNER_TEMP/gooo-diverse-bootstrap-witness-release"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$work/release.json"
+          python3 - "$work/release.json" "$SOURCE_ASSET_NAME" "$SOURCE_ASSET_DIGEST" "$EVIDENCE_ASSET_NAME" "$EVIDENCE_ASSET_DIGEST" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              release = json.load(handle)
+          if release.get("draft") is not False or release.get("prerelease") is not False or release.get("immutable") is not True:
+              raise SystemExit("release is not a published immutable non-prerelease")
+          assets = {asset["name"]: asset for asset in release.get("assets", [])}
+          if set(assets) != {sys.argv[2], sys.argv[4]}:
+              raise SystemExit("release asset set is not exactly source plus evidence")
+          for name, expected in ((sys.argv[2], sys.argv[3]), (sys.argv[4], sys.argv[5])):
+              if assets[name].get("digest") != "sha256:" + expected:
+                  raise SystemExit("release asset digest mismatch: " + name)
+          print("release_id=" + str(release["id"]))
+          print("source_asset_id=" + str(assets[sys.argv[2]]["id"]))
+          print("evidence_asset_id=" + str(assets[sys.argv[4]]["id"]))
+          print("source_digest=" + assets[sys.argv[2]]["digest"])
+          print("evidence_digest=" + assets[sys.argv[4]]["digest"])
+          PY
           tag_object="$(git rev-parse "refs/tags/$RELEASE_TAG^{tag}")"
-          tag_ref_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          tag_ref_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" | python3 -c 'import json, sys; print(json.load(sys.stdin)["object"]["sha"])')"
           test "$tag_ref_object" = "$tag_object"
           tag_commit="$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
-          tag_target="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.object.sha')"
+          tag_target="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" | python3 -c 'import json, sys; print(json.load(sys.stdin)["object"]["sha"])')"
           test "$tag_target" = "$tag_commit"
-          test "$(jq '.assets | length' <<<"$release")" = 1
-          api_digest="$(jq -r --arg name "$ASSET_NAME" '.assets[] | select(.name == $name) | .digest' <<<"$release")"
-          test "$api_digest" = "sha256:$ASSET_DIGEST"
-          echo "immutable=true tag_object=$tag_object tag_commit=$tag_commit asset=$api_digest"
+          echo "immutable=true release_tag=$RELEASE_TAG tag_object=$tag_object tag_commit=$tag_commit"
